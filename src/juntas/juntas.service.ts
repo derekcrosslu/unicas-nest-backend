@@ -228,4 +228,74 @@ export class JuntasService {
       },
     });
   }
+
+  async removeMember(
+    juntaId: string,
+    memberId: string,
+    userId: string,
+    userRole: UserRole,
+  ) {
+    const junta = await this.findOne(juntaId, userId, userRole);
+
+    // Check if user has permission to remove members
+    const hasPermission =
+      userRole === 'ADMIN' ||
+      (userRole === 'FACILITATOR' && junta.createdById === userId);
+
+    if (!hasPermission) {
+      throw new ForbiddenException(
+        'You do not have permission to remove members from this junta',
+      );
+    }
+
+    // Check if member exists in the junta
+    const member = await this.prisma.juntaMember.findUnique({
+      where: {
+        juntaId_userId: {
+          juntaId,
+          userId: memberId,
+        },
+      },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Member not found in this junta');
+    }
+
+    // Delete member's related records first
+    await this.prisma.$transaction([
+      // Delete prestamos
+      this.prisma.prestamo.deleteMany({
+        where: {
+          juntaId,
+          memberId,
+        },
+      }),
+      // Delete multas
+      this.prisma.multa.deleteMany({
+        where: {
+          juntaId,
+          memberId,
+        },
+      }),
+      // Delete acciones
+      this.prisma.accion.deleteMany({
+        where: {
+          juntaId,
+          memberId,
+        },
+      }),
+      // Finally, remove the member
+      this.prisma.juntaMember.delete({
+        where: {
+          juntaId_userId: {
+            juntaId,
+            userId: memberId,
+          },
+        },
+      }),
+    ]);
+
+    return { message: 'Member removed successfully' };
+  }
 }

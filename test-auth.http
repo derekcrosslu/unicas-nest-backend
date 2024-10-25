@@ -15,11 +15,11 @@ GET http://localhost:3000/api/health/dev-token
 
 ### Get current user profile
 GET http://localhost:3000/api/users/me
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODEwOTY3LCJpYXQiOjE3Mjk4MDczNjcsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.HNdrXzlw2-mYqW1KHwjbtL_1h3bNkA16A5C6-njiqPA
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODY5NzYxLCJpYXQiOjE3Mjk4NjYxNjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.CVUJv6O8uJc1vIzp0f9_oHIKQNgpaxCGFzsyyQgAHQo
 
 ### Create a new user
 POST http://localhost:3000/api/users
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODEwOTY3LCJpYXQiOjE3Mjk4MDczNjcsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.HNdrXzlw2-mYqW1KHwjbtL_1h3bNkA16A5C6-njiqPA
+Authorization: Bearer your_token_here
 Content-Type: application/json
 
 {
@@ -48,42 +48,28 @@ Content-Type: application/json
 
 ### Get all juntas
 GET http://localhost:3000/api/juntas
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODEwMjE0LCJpYXQiOjE3Mjk4MDY2MTQsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.Va9FMB_8LhorjCCcfBvblMl4VL3BqX1P_YmJZKPKB6o
+Authorization: Bearer your_token_here
 
 ### Get specific junta
-GET http://localhost:3000/api/juntas/3633c14e-eedb-4df3-b286-730404cd1247
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODEwMjE0LCJpYXQiOjE3Mjk4MDY2MTQsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.Va9FMB_8LhorjCCcfBvblMl4VL3BqX1P_YmJZKPKB6o
+GET http://localhost:3000/api/juntas/JUNTA_ID
+Authorization: Bearer your_token_here
 
 ### Delete a junta
-DELETE http://localhost:3000/api/juntas/3633c14e-eedb-4df3-b286-730404cd1247
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODEwMjE0LCJpYXQiOjE3Mjk4MDY2MTQsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.Va9FMB_8LhorjCCcfBvblMl4VL3BqX1P_YmJZKPKB6o
-
-### 4. Junta Users Management
-
-### Get all users of a junta
-GET http://localhost:3000/api/junta-users/JUNTA_ID
+DELETE http://localhost:3000/api/juntas/JUNTA_ID
 Authorization: Bearer your_token_here
 
-### Create a new user and add to junta
-POST http://localhost:3000/api/junta-users
+### 4. Member Management
+
+### Get all members of a junta
+GET http://localhost:3000/api/members/JUNTA_ID
 Authorization: Bearer your_token_here
-Content-Type: application/json
 
-{
-  "is_superuser": false,
-  "document_type": "DNI",
-  "first_name": "John",
-  "last_name": "Doe",
-  "document_number": "12345678",
-  "birth_date": "1990-01-01",
-  "province": "Lima",
-  "district": "Miraflores",
-  "address": "123 Main St",
-  "juntaId": "JUNTA_ID"
-}
+### Add member to junta
+POST http://localhost:3000/api/members/JUNTA_ID/add/DOCUMENT_NUMBER
+Authorization: Bearer your_token_here
 
-### Delete a user
-DELETE http://localhost:3000/api/junta-users/USER_ID
+### Remove member from junta
+DELETE http://localhost:3000/api/members/JUNTA_ID/MEMBER_ID
 Authorization: Bearer your_token_here
 
 ### 5. Prestamos Management
@@ -113,41 +99,35 @@ Authorization: Bearer your_token_here
    ```javascript
    const API_URL = 'http://localhost:3000/api';
    
-   // Example: Delete a junta
-   const response = await fetch(`${API_URL}/juntas/${juntaId}`, {
+   // Example: Get members
+   const response = await fetch(`${API_URL}/members/${juntaId}`, {
+     headers: {
+       'Authorization': `Bearer ${token}`,
+     },
+   });
+
+   // Example: Add member
+   const response = await fetch(`${API_URL}/members/${juntaId}/add/${documentNumber}`, {
+     method: 'POST',
+     headers: {
+       'Authorization': `Bearer ${token}`,
+     },
+   });
+
+   // Example: Remove member
+   const response = await fetch(`${API_URL}/members/${juntaId}/${memberId}`, {
      method: 'DELETE',
      headers: {
        'Authorization': `Bearer ${token}`,
      },
    });
-
-   // Example: Get junta members
-   const response = await fetch(`${API_URL}/junta-users/${juntaId}`, {
-     headers: {
-       'Authorization': `Bearer ${token}`,
-     },
-   });
-
-   // Example: Create prestamo
-   const response = await fetch(`${API_URL}/prestamos/${juntaId}`, {
-     method: 'POST',
-     headers: {
-       'Authorization': `Bearer ${token}`,
-       'Content-Type': 'application/json',
-     },
-     body: JSON.stringify({
-       amount: 1000,
-       description: 'Préstamo inicial',
-       memberId: 'member-id',
-     }),
-   });
    ```
 
 2. Error Handling:
    ```javascript
-   const handleDeleteJunta = async (juntaId) => {
+   const handleRemoveMember = async (juntaId, memberId) => {
      try {
-       const response = await fetch(`${API_URL}/juntas/${juntaId}`, {
+       const response = await fetch(`${API_URL}/members/${juntaId}/${memberId}`, {
          method: 'DELETE',
          headers: {
            'Authorization': `Bearer ${token}`,
@@ -156,13 +136,13 @@ Authorization: Bearer your_token_here
 
        if (!response.ok) {
          const error = await response.json();
-         throw new Error(error.message || 'Failed to delete junta');
+         throw new Error(error.message || 'Failed to remove member');
        }
 
        // Handle success
-       await refetchJuntas();
+       await refetchMembers();
      } catch (error) {
-       console.error('Failed to delete junta:', error);
+       console.error('Failed to remove member:', error);
        // Show error message to user
      }
    };
@@ -177,8 +157,14 @@ Authorization: Bearer your_token_here
    - Always include Bearer token in Authorization header
    - Token can be obtained from /api/health/dev-token for testing
 
+5. Role-Based Access:
+   - ADMIN: Can manage all juntas and members
+   - FACILITATOR: Can manage own juntas and their members
+   - MEMBER: Can view junta details and member list
+   - USER: Basic access only
+
 Note: Replace placeholders:
 - your_token_here: Use actual token from /api/health/dev-token
 - JUNTA_ID: Use actual junta ID
 - MEMBER_ID: Use actual member ID
-- USER_ID: Use actual user ID
+- DOCUMENT_NUMBER: Use actual document number when adding members
