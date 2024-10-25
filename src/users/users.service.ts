@@ -42,6 +42,23 @@ export class UsersService {
     return user;
   }
 
+  async findAll(requestingUserRole: UserRole) {
+    if (requestingUserRole !== 'ADMIN') {
+      throw new ForbiddenException('Only administrators can list all users');
+    }
+
+    return this.prisma.user.findMany({
+      include: {
+        memberJuntas: {
+          include: {
+            junta: true,
+          },
+        },
+        createdJuntas: true,
+      },
+    });
+  }
+
   async findOrCreateUser(userData: {
     email: string;
     username: string;
@@ -62,7 +79,11 @@ export class UsersService {
     return user;
   }
 
-  async updateRole(id: string, role: UserRole) {
+  async updateRole(id: string, role: UserRole, requestingUserRole: UserRole) {
+    if (requestingUserRole !== 'ADMIN') {
+      throw new ForbiddenException('Only administrators can update user roles');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
@@ -110,7 +131,6 @@ export class UsersService {
   }
 
   async deleteUser(id: string, requestingUserRole: UserRole) {
-    // Only ADMIN can delete users
     if (requestingUserRole !== 'ADMIN') {
       throw new ForbiddenException('Only administrators can delete users');
     }
@@ -118,8 +138,8 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({
       where: { id },
       include: {
-        createdJuntas: true,
         memberJuntas: true,
+        createdJuntas: true,
       },
     });
 
@@ -133,8 +153,10 @@ export class UsersService {
     });
 
     // Delete the user
-    return this.prisma.user.delete({
+    await this.prisma.user.delete({
       where: { id },
     });
+
+    return { message: 'User deleted successfully' };
   }
 }

@@ -9,6 +9,10 @@ import { JuntasModule } from './juntas/juntas.module';
 import { HealthModule } from './health/health.module';
 import { MembersModule } from './members/members.module';
 import { PrestamosModule } from './prestamos/prestamos.module';
+import { MultasModule } from './multas/multas.module';
+import { AccionesModule } from './acciones/acciones.module';
+import { AgendaModule } from './agenda/agenda.module';
+import { CapitalModule } from './capital/capital.module';
 import { LoggerMiddleware } from './middleware/logger.middleware';
 
 @Module({
@@ -21,6 +25,10 @@ import { LoggerMiddleware } from './middleware/logger.middleware';
     HealthModule,
     MembersModule,
     PrestamosModule,
+    MultasModule,
+    AccionesModule,
+    AgendaModule,
+    CapitalModule,
   ],
   controllers: [AppController],
   providers: [AppService],

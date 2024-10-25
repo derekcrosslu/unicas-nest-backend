@@ -34,6 +34,16 @@ interface RequestWithUser extends Request {
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Get()
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Get all users (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Return all users.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  async findAll(@Request() req: RequestWithUser) {
+    return this.usersService.findAll(req.user.role);
+  }
+
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'Return the current user.' })
@@ -56,8 +66,12 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'The role has been updated.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
-  updateRole(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
-    return this.usersService.updateRole(id, updateRoleDto.role);
+  updateRole(
+    @Param('id') id: string,
+    @Body() updateRoleDto: UpdateRoleDto,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.usersService.updateRole(id, updateRoleDto.role, req.user.role);
   }
 
   @Post()

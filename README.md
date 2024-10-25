@@ -1,190 +1,175 @@
 # Las Unicas Backend
 
-NestJS backend with Prisma ORM, Clerk authentication, and role-based access control.
+NestJS backend for Las Unicas application with role-based access control and comprehensive financial management features.
 
 ## Features
 
 - Role-based access control (Admin, Facilitator, Member, User)
-- Authentication using Clerk
-- Database integration with Supabase using Prisma ORM
-- Docker support for local development and deployment
-- API documentation with Swagger
-- Health check endpoint
-- Webhook support for user synchronization
+- Junta management
+- Member management
+- Financial operations (Prestamos, Multas, Acciones)
+- Capital social management
+- Agenda management
+- Clerk authentication integration
+- Supabase database integration
 
 ## Prerequisites
 
-- Node.js v18 or later
-- Docker and Docker Compose (for local development)
-- Clerk account and credentials
-- Supabase database
+- Node.js v20 or later
+- npm v9 or later
+- PostgreSQL (production) / SQLite (development)
+- Clerk account for authentication
+- Supabase account for database
 
 ## Environment Variables
 
-Create a `.env` file with the following variables:
+Create a `.env` file with:
 
 ```env
 # Database
-DATABASE_URL=postgresql://[user]:[password]@[host]:[port]/[database]
+DATABASE_URL="postgresql://user:password@host:port/database"
 
-# Clerk
-CLERK_API=https://api.clerk.com
-CLERK_PUBLIC_KEY=your_public_key
-CLERK_FRONTEND_API_URL=your_frontend_api_url
-CLERK_JWKS_URL=your_jwks_url
-CLERK_SECRET_KEY=your_secret_key
-CLERK_WEBHOOK_SECRET=your_webhook_secret
+# Clerk Authentication
+CLERK_SECRET_KEY=your_clerk_secret_key
+CLERK_FRONTEND_API_URL=your_clerk_frontend_api_url
+CLERK_JWKS_URL=your_clerk_jwks_url
 
-# Frontend
+# Frontend URL
 FRONTEND_URL=http://localhost:3001
+
+# Environment
+NODE_ENV=development
 ```
 
-## Local Development
-
-1. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-2. Generate Prisma client:
-
-   ```bash
-   npm run prisma:generate
-   ```
-
-3. Push database schema:
-
-   ```bash
-   npm run prisma:push
-   ```
-
-4. Start the development server:
-   ```bash
-   npm run start:dev
-   ```
-
-Or using Docker:
+## Installation
 
 ```bash
-docker-compose up
+# Install dependencies
+npm install
+
+# Generate Prisma Client
+npx prisma generate
+
+# Run database migrations
+npx prisma migrate deploy
+
+# Start development server
+npm run start:dev
 ```
 
 ## API Documentation
 
-Once the application is running, visit `/docs` for the Swagger API documentation.
+Access Swagger documentation at: `http://localhost:3000/docs`
 
-## Authentication
+## Role-Based Access
 
-The backend uses Clerk for authentication. All requests (except health check and webhook) must include a Bearer token:
+1. Admin
+
+   - Full access to all juntas and operations
+   - Can manage users and roles
+   - Can perform all financial operations
+
+2. Facilitator
+
+   - Can create and manage own juntas
+   - Access limited to created juntas
+   - Can manage members in own juntas
+
+3. Member
+
+   - Access limited to joined juntas
+   - Can view junta details and participate
+   - Limited financial operations
+
+4. User
+   - Basic access only
+   - Can be added as member to juntas
+
+## Docker Deployment
 
 ```bash
-Authorization: Bearer <clerk_session_token>
+# Build image
+docker build -t las-unicas-backend .
+
+# Run container
+docker run -p 3000:3000 --env-file .env las-unicas-backend
 ```
 
-## Role-Based Access Control
+## Railway.app Deployment
 
-- **Admin**: Full access to all features
+1. Push code to GitHub repository
+2. Connect repository to Railway.app
+3. Set environment variables in Railway dashboard
+4. Deploy application
 
-  - Can create and view all juntas
-  - Can manage user roles
-  - Can add members to any junta
+## Development
 
-- **Facilitator**: Limited management access
+```bash
+# Run tests
+npm run test
 
-  - Can create juntas
-  - Can view and manage juntas they created
-  - Can add members to juntas they manage
+# Run linter
+npm run lint
 
-- **Member**: Basic access
-
-  - Can view juntas they are members of
-  - Cannot create or manage juntas
-
-- **User**: Minimal access
-  - Can only view public information
-  - Must be added to juntas by admins or facilitators
-
-## Deployment to Railway.app
-
-1. Create a new project on Railway.app
-
-2. Add the following environment variables in Railway:
-
-   - `DATABASE_URL`
-   - `CLERK_API`
-   - `CLERK_PUBLIC_KEY`
-   - `CLERK_FRONTEND_API_URL`
-   - `CLERK_JWKS_URL`
-   - `CLERK_SECRET_KEY`
-   - `CLERK_WEBHOOK_SECRET`
-   - `FRONTEND_URL`
-
-3. Connect your GitHub repository to Railway:
-
-   ```bash
-   # Install Railway CLI
-   npm i -g @railway/cli
-
-   # Login to Railway
-   railway login
-
-   # Link your project
-   railway link
-
-   # Deploy your application
-   railway up
-   ```
-
-4. Railway will automatically build and deploy your application using the Dockerfile
-
-## Available Scripts
-
-- `npm run start:dev` - Start the development server
-- `npm run build` - Build the application
-- `npm run start:prod` - Start the production server
-- `npm run prisma:generate` - Generate Prisma Client
-- `npm run prisma:push` - Push schema changes to the database
-- `npm run lint` - Run ESLint
-- `npm run test` - Run tests
-- `npm run test:e2e` - Run end-to-end tests
-
-## Project Structure
-
-```
-src/
-├── auth/           # Authentication and authorization
-├── users/          # User management
-├── juntas/         # Juntas (meetings) management
-├── prisma/         # Database configuration
-├── config/         # Application configuration
-└── health/         # Health check endpoint
+# Format code
+npm run format
 ```
 
 ## API Endpoints
 
 ### Users
 
-- `POST /api/users/webhook` - Handle Clerk webhooks
-- `GET /api/users/me` - Get current user profile
-- `GET /api/users/:id` - Get user by ID (Admin only)
-- `PUT /api/users/:id/role` - Update user role (Admin only)
+- `POST /api/users` - Create user
+- `GET /api/users/me` - Get current user
+- `PUT /api/users/:id/role` - Update user role
 
 ### Juntas
 
-- `POST /api/juntas` - Create a new junta (Admin, Facilitator)
-- `GET /api/juntas` - List juntas (filtered by role)
-- `GET /api/juntas/:id` - Get specific junta
-- `POST /api/juntas/:id/members` - Add member to junta (Admin, Facilitator)
+- `POST /api/juntas` - Create junta
+- `GET /api/juntas` - List juntas
+- `GET /api/juntas/:id` - Get junta details
 
-### Health
+### Members
 
-- `GET /api/health` - Health check endpoint
+- `POST /api/members/:juntaId/add/:documentNumber` - Add member
+- `GET /api/members/:juntaId` - List members
+- `DELETE /api/members/:juntaId/:memberId` - Remove member
+
+### Financial
+
+- `POST /api/prestamos` - Create loan
+- `POST /api/multas` - Create fine
+- `POST /api/acciones` - Create action
+- `POST /api/capital/social` - Create capital social
+
+### Agenda
+
+- `POST /api/agenda` - Create agenda item
+- `GET /api/agenda/junta/:juntaId` - List agenda items
+
+## Database Schema
+
+Key entities:
+
+- User
+- Junta
+- JuntaMember
+- Prestamo
+- Multa
+- Accion
+- AgendaItem
+- CapitalSocial
+- IngresoCapital
+- GastoCapital
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Fork repository
+2. Create feature branch
+3. Commit changes
+4. Push to branch
+5. Create pull request
+
+## License
+
+MIT License

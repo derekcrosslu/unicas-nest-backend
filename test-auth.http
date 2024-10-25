@@ -11,15 +11,23 @@ GET http://localhost:3000/api/health
 ### Get development token
 GET http://localhost:3000/api/health/dev-token
 
-### 2. User Management
+### 2. User Management (Admin)
+
+### Get all users (Admin only)
+GET http://localhost:3000/api/users
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
 
 ### Get current user profile
 GET http://localhost:3000/api/users/me
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODY5NzYxLCJpYXQiOjE3Mjk4NjYxNjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.CVUJv6O8uJc1vIzp0f9_oHIKQNgpaxCGFzsyyQgAHQo
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+
+### Get specific user
+GET http://localhost:3000/api/users/23ea3265-1ab2-4d5c-a81c-35c33f9cee38
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
 
 ### Create a new user
 POST http://localhost:3000/api/users
-Authorization: Bearer your_token_here
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
 Content-Type: application/json
 
 {
@@ -30,14 +38,24 @@ Content-Type: application/json
   "birth_date": "1990-01-01",
   "province": "Lima",
   "district": "Miraflores",
-  "address": "123 Main St"
+  "address": "123 Main St",
+  "is_superuser": false
+}
+
+### Update user role (Admin only)
+PUT http://localhost:3000/api/users/USER_ID/role
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+Content-Type: application/json
+
+{
+  "role": "FACILITATOR"
 }
 
 ### 3. Junta Management
 
 ### Create a new junta
 POST http://localhost:3000/api/juntas
-Authorization: Bearer your_token_here
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
 Content-Type: application/json
 
 {
@@ -48,123 +66,194 @@ Content-Type: application/json
 
 ### Get all juntas
 GET http://localhost:3000/api/juntas
-Authorization: Bearer your_token_here
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
 
 ### Get specific junta
 GET http://localhost:3000/api/juntas/JUNTA_ID
-Authorization: Bearer your_token_here
-
-### Delete a junta
-DELETE http://localhost:3000/api/juntas/JUNTA_ID
-Authorization: Bearer your_token_here
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
 
 ### 4. Member Management
 
 ### Get all members of a junta
 GET http://localhost:3000/api/members/JUNTA_ID
-Authorization: Bearer your_token_here
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
 
 ### Add member to junta
-POST http://localhost:3000/api/members/JUNTA_ID/add/DOCUMENT_NUMBER
-Authorization: Bearer your_token_here
+POST http://localhost:3000/api/members/6fe6314e-6d8b-413b-b018-562fb4f65e01/add/12345678@example.com
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
 
 ### Remove member from junta
 DELETE http://localhost:3000/api/members/JUNTA_ID/MEMBER_ID
-Authorization: Bearer your_token_here
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
 
-### 5. Prestamos Management
+### 5. Multas Management
 
-### Get all prestamos of a junta
-GET http://localhost:3000/api/prestamos/JUNTA_ID
-Authorization: Bearer your_token_here
-
-### Create a new prestamo
-POST http://localhost:3000/api/prestamos/JUNTA_ID
-Authorization: Bearer your_token_here
+### Create a new multa
+POST http://localhost:3000/api/multas
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
 Content-Type: application/json
 
 {
-  "amount": 1000,
-  "description": "Préstamo inicial",
-  "memberId": "MEMBER_ID"
+  "amount": 100,
+  "description": "Tardanza a reunión",
+  "juntaId": "6fe6314e-6d8b-413b-b018-562fb4f65e01",
+  "memberId": "23ea3265-1ab2-4d5c-a81c-35c33f9cee38"
 }
 
-### Get prestamos by member
-GET http://localhost:3000/api/prestamos/JUNTA_ID/member/MEMBER_ID
-Authorization: Bearer your_token_here
+### Get multas for a junta
+GET http://localhost:3000/api/multas/junta/6fe6314e-6d8b-413b-b018-562fb4f65e01
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+
+### Update multa status
+PUT http://localhost:3000/api/multas/MULTA_ID
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+Content-Type: application/json
+
+{
+  "status": "PAID"
+}
+
+### 6. Acciones Management
+
+### Create a new accion
+POST http://localhost:3000/api/acciones
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+Content-Type: application/json
+
+{
+  "type": "COMPRA",
+  "amount": 1000,
+  "description": "Compra de acciones",
+  "juntaId": "6fe6314e-6d8b-413b-b018-562fb4f65e01",
+  "memberId": "23ea3265-1ab2-4d5c-a81c-35c33f9cee38"
+}
+
+### Get acciones for a junta
+GET http://localhost:3000/api/acciones/junta/6fe6314e-6d8b-413b-b018-562fb4f65e01
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+
+### Get user acciones
+GET http://localhost:3000/api/acciones/user
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+
+### 7. Agenda Management
+
+### Create a new agenda item
+POST http://localhost:3000/api/agenda
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+Content-Type: application/json
+
+{
+  "title": "Reunión Mensual",
+  "description": "Revisión de préstamos y multas",
+  "date": "2024-02-01",
+  "juntaId": "JUNTA_ID"
+}
+
+### Get agenda items for a junta
+GET http://localhost:3000/api/agenda/junta/JUNTA_ID
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+
+### Update agenda item
+PUT http://localhost:3000/api/agenda/AGENDA_ITEM_ID
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+Content-Type: application/json
+
+{
+  "title": "Reunión Mensual Actualizada",
+  "date": "2024-02-02"
+}
+
+### 8. Capital Management
+
+### Create capital social
+POST http://localhost:3000/api/capital/social
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+Content-Type: application/json
+
+{
+  "amount": 10000,
+  "juntaId": "JUNTA_ID"
+}
+
+### Get capital social for a junta
+GET http://localhost:3000/api/capital/social/junta/JUNTA_ID
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+
+### Create ingreso
+POST http://localhost:3000/api/capital/ingreso
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+Content-Type: application/json
+
+{
+  "amount": 500,
+  "description": "Aporte mensual",
+  "capitalSocialId": "CAPITAL_SOCIAL_ID"
+}
+
+### Get ingresos
+GET http://localhost:3000/api/capital/ingreso/CAPITAL_SOCIAL_ID
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+
+### Create gasto
+POST http://localhost:3000/api/capital/gasto
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
+Content-Type: application/json
+
+{
+  "amount": 200,
+  "description": "Gastos administrativos",
+  "capitalSocialId": "CAPITAL_SOCIAL_ID"
+}
+
+### Get gastos
+GET http://localhost:3000/api/capital/gasto/CAPITAL_SOCIAL_ID
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODc3NzIxLCJpYXQiOjE3Mjk4NzQxMjEsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.pPNYS6yeGGD-VWRAIwi_g3SKqNMM4xP6CijefBoFCqk
 
 ### Frontend Integration Notes:
 
-1. API Base URL:
+1. Admin User Management:
    ```javascript
-   const API_URL = 'http://localhost:3000/api';
-   
-   // Example: Get members
-   const response = await fetch(`${API_URL}/members/${juntaId}`, {
-     headers: {
-       'Authorization': `Bearer ${token}`,
-     },
-   });
+   // Get all users (Admin only)
+   const getAllUsers = async () => {
+     const response = await fetch(`${API_URL}/users`, {
+       headers: {
+         'Authorization': `Bearer ${token}`,
+       },
+     });
+     return handleError(response);
+   };
 
-   // Example: Add member
-   const response = await fetch(`${API_URL}/members/${juntaId}/add/${documentNumber}`, {
-     method: 'POST',
-     headers: {
-       'Authorization': `Bearer ${token}`,
-     },
-   });
-
-   // Example: Remove member
-   const response = await fetch(`${API_URL}/members/${juntaId}/${memberId}`, {
-     method: 'DELETE',
-     headers: {
-       'Authorization': `Bearer ${token}`,
-     },
-   });
+   // Update user role (Admin only)
+   const updateUserRole = async (userId, role) => {
+     const response = await fetch(`${API_URL}/users/${userId}/role`, {
+       method: 'PUT',
+       headers: {
+         'Authorization': `Bearer ${token}`,
+         'Content-Type': 'application/json',
+       },
+       body: JSON.stringify({ role }),
+     });
+     return handleError(response);
+   };
    ```
 
 2. Error Handling:
    ```javascript
-   const handleRemoveMember = async (juntaId, memberId) => {
-     try {
-       const response = await fetch(`${API_URL}/members/${juntaId}/${memberId}`, {
-         method: 'DELETE',
-         headers: {
-           'Authorization': `Bearer ${token}`,
-         },
-       });
-
-       if (!response.ok) {
-         const error = await response.json();
-         throw new Error(error.message || 'Failed to remove member');
-       }
-
-       // Handle success
-       await refetchMembers();
-     } catch (error) {
-       console.error('Failed to remove member:', error);
-       // Show error message to user
+   const handleError = async (response) => {
+     if (!response.ok) {
+       const error = await response.json();
+       throw new Error(error.message || 'Request failed');
      }
+     return response.json();
    };
    ```
 
-3. CORS Configuration:
-   - Backend allows requests from http://localhost:3001
-   - Credentials are allowed
-   - All necessary HTTP methods enabled
-
-4. Authentication:
-   - Always include Bearer token in Authorization header
-   - Token can be obtained from /api/health/dev-token for testing
-
-5. Role-Based Access:
-   - ADMIN: Can manage all juntas and members
-   - FACILITATOR: Can manage own juntas and their members
-   - MEMBER: Can view junta details and member list
-   - USER: Basic access only
-
 Note: Replace placeholders:
 - your_token_here: Use actual token from /api/health/dev-token
+- USER_ID: Use actual user ID
 - JUNTA_ID: Use actual junta ID
 - MEMBER_ID: Use actual member ID
-- DOCUMENT_NUMBER: Use actual document number when adding members
+- MULTA_ID: Use actual multa ID
+- AGENDA_ITEM_ID: Use actual agenda item ID
+- CAPITAL_SOCIAL_ID: Use actual capital social ID
