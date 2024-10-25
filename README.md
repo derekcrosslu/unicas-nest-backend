@@ -85,6 +85,23 @@ Access Swagger documentation at: `http://localhost:3000/docs`
    - Basic access only
    - Can be added as member to juntas
 
+### Understanding User Types
+
+1. User:
+
+   - Basic account in the system
+   - Has a role (default is "USER")
+   - Not yet associated with any junta
+   - Limited access to system features
+
+2. Member:
+   - Is a User who belongs to one or more juntas
+   - Created when a User is added to a Junta
+   - Has access to their junta's features (prestamos, pagos, etc.)
+   - Can view junta-related information they're a member of
+
+Note: Every Member is a User, but not every User is a Member. A User becomes a Member when they are added to a Junta, and can be a Member of multiple Juntas.
+
 ## Docker Deployment
 
 ```bash
@@ -137,7 +154,53 @@ npm run format
 
 ### Financial
 
-- `POST /api/prestamos` - Create loan
+#### Prestamos Management
+
+1. Create new prestamo (ADMIN/FACILITATOR only):
+
+```
+POST /prestamos
+Body: {
+  "amount": number,
+  "description": string,
+  "juntaId": string,
+  "memberId": string
+}
+```
+
+2. Create payment for prestamo (ADMIN/FACILITATOR only):
+
+```
+POST /prestamos/:id/pagos
+Body: {
+  "amount": number
+}
+```
+
+3. Get all prestamos for a junta (Members, ADMIN, FACILITATOR):
+
+```
+GET /prestamos/junta/:juntaId
+```
+
+4. Get all pagos for a junta (Members, ADMIN, FACILITATOR):
+
+```
+GET /prestamos/junta/:juntaId/pagos
+```
+
+5. View member's own prestamos:
+
+```
+GET /prestamos/member/:memberId
+```
+
+6. View member's own pagos:
+
+```
+GET /members/dni/:documentNumber/pagos
+```
+
 - `POST /api/multas` - Create fine
 - `POST /api/acciones` - Create action
 - `POST /api/capital/social` - Create capital social
