@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  username        String    @unique
+  role            String    @default("USER") // Values: "ADMIN", "FACILITATOR", "MEMBER", "USER"
+  document_type   String?
+  document_number String?
+  full_name       String?
+  first_name      String?
+  last_name       String?
+  birth_date      DateTime?
+  province        String?
+  district        String?
+  address         String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  createdJuntas Junta[]       @relation("CreatedBy")
+  memberJuntas  JuntaMember[]
+  prestamos     Prestamo[]
+  multas        Multa[]
+  acciones      Accion[]
+}
+
+model Junta {
+  id           String    @id @default(uuid())
+  name         String
+  description  String?
+  fecha_inicio DateTime
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  createdById  String
+  createdBy    User      @relation("CreatedBy", fields: [createdById], references: [id])
+
+  // Relations
+  members     JuntaMember[]
+  prestamos   Prestamo[]
+  multas      Multa[]
+  acciones    Accion[]
+  agenda      AgendaItem[]
+  capital     CapitalSocial?
+}
+
+model JuntaMember {
+  id        String   @id @default(uuid())
+  juntaId   String
+  userId    String
+  joinedAt  DateTime @default(now())
+  
+  // Relations
+  junta     Junta    @relation(fields: [juntaId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([juntaId, userId])
+}
+
+model Prestamo {
+  id          String    @id @default(uuid())
+  amount      Float
+  description String?
+  status      String    @default("PENDING")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  juntaId     String
+  memberId    String
+
+  // Relations
+  junta       Junta     @relation(fields: [juntaId], references: [id])
+  member      User      @relation(fields: [memberId], references: [id])
+  pagos       PagoPrestamo[]
+}
+
+model PagoPrestamo {
+  id          String    @id @default(uuid())
+  amount      Float
+  date        DateTime  @default(now())
+  prestamoId  String
+  
+  // Relations
+  prestamo    Prestamo  @relation(fields: [prestamoId], references: [id])
+}
+
+model Multa {
+  id          String    @id @default(uuid())
+  amount      Float
+  description String
+  status      String    @default("PENDING")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  juntaId     String
+  memberId    String
+
+  // Relations
+  junta       Junta     @relation(fields: [juntaId], references: [id])
+  member      User      @relation(fields: [memberId], references: [id])
+}
+
+model Accion {
+  id          String    @id @default(uuid())
+  type        String
+  amount      Float
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  juntaId     String
+  memberId    String
+
+  // Relations
+  junta       Junta     @relation(fields: [juntaId], references: [id])
+  member      User      @relation(fields: [memberId], references: [id])
+}
+
+model AgendaItem {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  date        DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  juntaId     String
+
+  // Relations
+  junta       Junta     @relation(fields: [juntaId], references: [id])
+}
+
+model CapitalSocial {
+  id          String    @id @default(uuid())
+  amount      Float     @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  juntaId     String    @unique
+
+  // Relations
+  junta       Junta     @relation(fields: [juntaId], references: [id])
+  ingresos    IngresoCapital[]
+  gastos      GastoCapital[]
+}
+
+model IngresoCapital {
+  id              String        @id @default(uuid())
+  amount          Float
+  description     String
+  date            DateTime      @default(now())
+  capitalSocialId String
+
+  // Relations
+  capitalSocial   CapitalSocial @relation(fields: [capitalSocialId], references: [id])
+}
+
+model GastoCapital {
+  id              String        @id @default(uuid())
+  amount          Float
+  description     String
+  date            DateTime      @default(now())
+  capitalSocialId String
+
+  // Relations
+  capitalSocial   CapitalSocial @relation(fields: [capitalSocialId], references: [id])
+}

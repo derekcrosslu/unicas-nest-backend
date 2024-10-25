@@ -1,0 +1,184 @@
+### Important Notes:
+# 1. Backend runs on http://localhost:3000
+# 2. Frontend runs on http://localhost:3001
+# 3. All API requests should go to http://localhost:3000/api/...
+
+### 1. Public Endpoints (no auth required)
+
+### Health check
+GET http://localhost:3000/api/health
+
+### Get development token
+GET http://localhost:3000/api/health/dev-token
+
+### 2. User Management
+
+### Get current user profile
+GET http://localhost:3000/api/users/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODEwOTY3LCJpYXQiOjE3Mjk4MDczNjcsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.HNdrXzlw2-mYqW1KHwjbtL_1h3bNkA16A5C6-njiqPA
+
+### Create a new user
+POST http://localhost:3000/api/users
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODEwOTY3LCJpYXQiOjE3Mjk4MDczNjcsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.HNdrXzlw2-mYqW1KHwjbtL_1h3bNkA16A5C6-njiqPA
+Content-Type: application/json
+
+{
+  "document_type": "DNI",
+  "document_number": "12345678",
+  "first_name": "John",
+  "last_name": "Doe",
+  "birth_date": "1990-01-01",
+  "province": "Lima",
+  "district": "Miraflores",
+  "address": "123 Main St"
+}
+
+### 3. Junta Management
+
+### Create a new junta
+POST http://localhost:3000/api/juntas
+Authorization: Bearer your_token_here
+Content-Type: application/json
+
+{
+  "name": "Primera Junta",
+  "description": "Junta inicial para pruebas",
+  "fecha_inicio": "2024-01-01"
+}
+
+### Get all juntas
+GET http://localhost:3000/api/juntas
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODEwMjE0LCJpYXQiOjE3Mjk4MDY2MTQsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.Va9FMB_8LhorjCCcfBvblMl4VL3BqX1P_YmJZKPKB6o
+
+### Get specific junta
+GET http://localhost:3000/api/juntas/3633c14e-eedb-4df3-b286-730404cd1247
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODEwMjE0LCJpYXQiOjE3Mjk4MDY2MTQsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.Va9FMB_8LhorjCCcfBvblMl4VL3BqX1P_YmJZKPKB6o
+
+### Delete a junta
+DELETE http://localhost:3000/api/juntas/3633c14e-eedb-4df3-b286-730404cd1247
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzI5ODEwMjE0LCJpYXQiOjE3Mjk4MDY2MTQsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.Va9FMB_8LhorjCCcfBvblMl4VL3BqX1P_YmJZKPKB6o
+
+### 4. Junta Users Management
+
+### Get all users of a junta
+GET http://localhost:3000/api/junta-users/JUNTA_ID
+Authorization: Bearer your_token_here
+
+### Create a new user and add to junta
+POST http://localhost:3000/api/junta-users
+Authorization: Bearer your_token_here
+Content-Type: application/json
+
+{
+  "is_superuser": false,
+  "document_type": "DNI",
+  "first_name": "John",
+  "last_name": "Doe",
+  "document_number": "12345678",
+  "birth_date": "1990-01-01",
+  "province": "Lima",
+  "district": "Miraflores",
+  "address": "123 Main St",
+  "juntaId": "JUNTA_ID"
+}
+
+### Delete a user
+DELETE http://localhost:3000/api/junta-users/USER_ID
+Authorization: Bearer your_token_here
+
+### 5. Prestamos Management
+
+### Get all prestamos of a junta
+GET http://localhost:3000/api/prestamos/JUNTA_ID
+Authorization: Bearer your_token_here
+
+### Create a new prestamo
+POST http://localhost:3000/api/prestamos/JUNTA_ID
+Authorization: Bearer your_token_here
+Content-Type: application/json
+
+{
+  "amount": 1000,
+  "description": "Préstamo inicial",
+  "memberId": "MEMBER_ID"
+}
+
+### Get prestamos by member
+GET http://localhost:3000/api/prestamos/JUNTA_ID/member/MEMBER_ID
+Authorization: Bearer your_token_here
+
+### Frontend Integration Notes:
+
+1. API Base URL:
+   ```javascript
+   const API_URL = 'http://localhost:3000/api';
+   
+   // Example: Delete a junta
+   const response = await fetch(`${API_URL}/juntas/${juntaId}`, {
+     method: 'DELETE',
+     headers: {
+       'Authorization': `Bearer ${token}`,
+     },
+   });
+
+   // Example: Get junta members
+   const response = await fetch(`${API_URL}/junta-users/${juntaId}`, {
+     headers: {
+       'Authorization': `Bearer ${token}`,
+     },
+   });
+
+   // Example: Create prestamo
+   const response = await fetch(`${API_URL}/prestamos/${juntaId}`, {
+     method: 'POST',
+     headers: {
+       'Authorization': `Bearer ${token}`,
+       'Content-Type': 'application/json',
+     },
+     body: JSON.stringify({
+       amount: 1000,
+       description: 'Préstamo inicial',
+       memberId: 'member-id',
+     }),
+   });
+   ```
+
+2. Error Handling:
+   ```javascript
+   const handleDeleteJunta = async (juntaId) => {
+     try {
+       const response = await fetch(`${API_URL}/juntas/${juntaId}`, {
+         method: 'DELETE',
+         headers: {
+           'Authorization': `Bearer ${token}`,
+         },
+       });
+
+       if (!response.ok) {
+         const error = await response.json();
+         throw new Error(error.message || 'Failed to delete junta');
+       }
+
+       // Handle success
+       await refetchJuntas();
+     } catch (error) {
+       console.error('Failed to delete junta:', error);
+       // Show error message to user
+     }
+   };
+   ```
+
+3. CORS Configuration:
+   - Backend allows requests from http://localhost:3001
+   - Credentials are allowed
+   - All necessary HTTP methods enabled
+
+4. Authentication:
+   - Always include Bearer token in Authorization header
+   - Token can be obtained from /api/health/dev-token for testing
+
+Note: Replace placeholders:
+- your_token_here: Use actual token from /api/health/dev-token
+- JUNTA_ID: Use actual junta ID
+- MEMBER_ID: Use actual member ID
+- USER_ID: Use actual user ID

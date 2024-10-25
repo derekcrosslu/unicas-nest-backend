@@ -1,0 +1,415 @@
+/Users/donaldcross/code/PROJECTS/LASUNICAS/REPO/nestjs-backend-unicas/alt-nestjs
+
+INSTRUCCIONES:
+crear un backend usando supabase para db, prisma para orm, nestjs, clerk  para permisos y railway.app for deployment with dockerfile de acuerdo al siguiente documento, deben haber 4 niveles de permisos, usuarios miembros, facilitadores y admin. Los admin pueden crear juntas y ver todas las juntas. Los facilitadores pueden crear juntas pero solo pueden ver las juntas que han creado y/o asignado. Los miembros solo pueden ver la junta de la que es miembro
+
+DESCRIPCION DE API:
+Visión General de Alto Nivel: El backend proporciona endpoints RESTful que permiten realizar operaciones CRUD (Crear, Leer, Actualizar, Eliminar) en varias entidades como usuarios, préstamos, pagos, multas, acciones, agendas y capital. Cada una de estas entidades está vinculada a juntas específicas, lo que convierte al sistema en una plataforma centralizada para la gestión de actividades financieras, acciones de los usuarios y las interacciones dentro de las juntas.
+Propósito de los Endpoints:
+Usuarios: Estas rutas gestionan la información relacionada con los usuarios. Los endpoints en /api/users/ permiten crear, actualizar y eliminar usuarios, esenciales para la administración de usuarios y la autenticación. El GET /api/info proporciona información del usuario actual, posiblemente para la gestión de sesiones o visualización del perfil. Rutas como /api/junta-users/{junta_id}/ permiten obtener los usuarios de una junta específica, ayudando al frontend a mostrar la información relevante de los usuarios dentro de las juntas.
+GET/POST /api/users/ - List all users or create a new user
+GET/PUT/DELETE /api/users/{id}/ - Retrieve, update, or delete a specific user
+GET /api/info - Get current user info
+GET /api/junta-users/{junta_id}/ - Get users from a specific junta
+Juntas: Los endpoints bajo /api/juntas/ permiten la creación y modificación de juntas (grupos o comités), que son la base para las actividades financieras grupales. El POST /api/juntas/add permite agregar usuarios a una junta, clave para la gestión de membresías de grupo. Estas rutas son esenciales para mostrar y gestionar grupos en el frontend.
+GET/POST /api/juntas/ - List all juntas or create a new junta
+GET/PUT/DELETE /api/juntas/{id}/ - Retrieve, update, or delete a specific junta
+POST /api/juntas/add - Add a user to a junta
+Préstamos: Estos endpoints permiten la gestión de los registros de préstamos, incluyendo listar, crear y editar préstamos. Son esenciales para que el frontend muestre los datos relacionados con los préstamos para los usuarios o juntas. Por ejemplo, /api/prestamos/junta/{junta_id}/ muestra los préstamos vinculados a una junta específica, reflejando la actividad de préstamos para un grupo.
+GET/POST /api/prestamos/ - List all prestamos or create a new prestamo
+GET/PUT/DELETE /api/prestamos/{id}/ - Retrieve, update, or delete a specific prestamo
+GET /api/prestamos/junta/{junta_id}/ - Get prestamos for a specific junta
+Pagos de Préstamos: Estas rutas manejan los pagos realizados para los préstamos, vinculados a las juntas. Permiten hacer un seguimiento de los reembolsos de los préstamos y garantizar que los registros financieros sean precisos tanto para los usuarios como para las juntas correspondientes.
+GET/POST /api/pagosprestamos/ - List all pagos prestamos or create a new pago
+GET /api/pagosprestamos/junta/{junta_id} - Get pagos prestamos for a specific junta
+Multas: Estos endpoints gestionan las multas emitidas a los usuarios o dentro de una junta específica. Permiten la creación, actualización y eliminación de multas, ayudando al frontend a reflejar los registros de sanciones financieras para mantener la responsabilidad dentro de las juntas.
+GET/POST /api/multas/ - List all multas or create a new multa
+GET/PUT/DELETE /api/multas/{id}/ - Retrieve, update, or delete a specific multa
+GET /api/multas/junta/{junta_id} - Get multas for a specific junta
+Acciones: Las rutas de acciones (/api/acciones/) permiten listar y gestionar acciones específicas que los usuarios pueden tomar dentro de una junta. Esto es relevante para mostrar las contribuciones o actividades de los usuarios dentro de sus respectivas juntas.
+GET/POST /api/acciones/ - List all acciones or create a new accion
+GET/PUT /api/acciones/{id}/ - Retrieve or update a specific accion
+DELETE /api/acciones/{id}/delete/ - Delete a specific accion
+GET /api/user-acciones/ - Get acciones for the current user
+GET /api/acciones/junta/{junta_id}/ - Get acciones for a specific junta
+Agenda: Los endpoints de agenda (/api/agenda/) permiten la creación y gestión de elementos de la agenda o calendario de una junta. Estos son cruciales para organizar eventos, reuniones o actividades grupales, y el frontend puede utilizarlos para mostrar un calendario o agenda actualizada.
+GET/POST /api/agenda/ - List all agenda items or create a new agenda item
+GET/PUT/DELETE /api/agenda/{id}/ - Retrieve, update, or delete a specific agenda item
+GET /api/agenda/junta/{junta_id} - Get agenda items for a specific junta
+Capital: Las rutas bajo /api/capital/ gestionan el capital social e ingresos/gastos dentro de una junta, proporcionando una visión clara de los recursos financieros. Esto permite al frontend mostrar la salud financiera de una junta y facilitar decisiones sobre distribución de capital.
+GET/POST /api/capital/social/ - List all capital social or create a new capital social
+GET/PUT/DELETE /api/capital/social/{id}/ - Retrieve, update, or delete a specific capital social
+GET /api/capital/social/junta/{junta_id} - Get capital social for a specific junta
+GET/POST /api/capital/ingreso/ - List all ingreso capital or create a new ingreso
+GET/PUT/DELETE /api/capital/ingreso/{id}/ - Retrieve, update, or delete a specific ingreso
+GET/POST /api/capital/gasto/ - List all gasto capital or create a new gasto
+GET/PUT/DELETE /api/capital/gasto/{id}/ - Retrieve, update, or delete a specific gasto
+En resumen, el backend soporta la gestión de usuarios y juntas, además de llevar un control detallado de las actividades financieras, como préstamos, pagos y multas, proporcionando al frontend la información necesaria para gestionar las interacciones y mostrar los datos relevantes de cada junta.  Para realizar estas llamadas a la API, típicamente se usaria métodos HTTP (GET, POST, PUT, DELETE) con la URL apropiada. Por ejemplo, para obtener una lista de todos los usuarios, harías una solicitud GET a http://127.0.0.1:8000/api/users/.
+
+
+DATABASE SCHEMA:
+[
+  {
+    "table_name": "acciones_accionpurchase",
+    "constraint_name": "acciones_accionpurchase_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "acciones_accionpurchase",
+    "constraint_name": "acciones_accionpurch_member_id_391753f8_fk_users_cus",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "member_id"
+  },
+  {
+    "table_name": "acciones_accionpurchase",
+    "constraint_name": "acciones_accionpurchase_junta_id_59c1a438_fk_juntas_junta_id",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "junta_id"
+  },
+  {
+    "table_name": "agenda_agendaitem",
+    "constraint_name": "agenda_agendaitem_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "agenda_agendaitem",
+    "constraint_name": "agenda_agendaitem_junta_id_0384fa33_fk_juntas_junta_id",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "junta_id"
+  },
+  {
+    "table_name": "auth_group",
+    "constraint_name": "auth_group_name_key",
+    "constraint_type": "UNIQUE",
+    "column_name": "name"
+  },
+  {
+    "table_name": "auth_group",
+    "constraint_name": "auth_group_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "auth_group_permissions",
+    "constraint_name": "auth_group_permissions_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "auth_group_permissions",
+    "constraint_name": "auth_group_permissions_group_id_permission_id_0cd325b0_uniq",
+    "constraint_type": "UNIQUE",
+    "column_name": "group_id"
+  },
+  {
+    "table_name": "auth_group_permissions",
+    "constraint_name": "auth_group_permissions_group_id_b120cbf9_fk_auth_group_id",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "group_id"
+  },
+  {
+    "table_name": "auth_group_permissions",
+    "constraint_name": "auth_group_permissio_permission_id_84c5c92e_fk_auth_perm",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "permission_id"
+  },
+  {
+    "table_name": "auth_group_permissions",
+    "constraint_name": "auth_group_permissions_group_id_permission_id_0cd325b0_uniq",
+    "constraint_type": "UNIQUE",
+    "column_name": "permission_id"
+  },
+  {
+    "table_name": "auth_permission",
+    "constraint_name": "auth_permission_content_type_id_2f476e4b_fk_django_co",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "content_type_id"
+  },
+  {
+    "table_name": "auth_permission",
+    "constraint_name": "auth_permission_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "auth_permission",
+    "constraint_name": "auth_permission_content_type_id_codename_01ab375a_uniq",
+    "constraint_type": "UNIQUE",
+    "column_name": "content_type_id"
+  },
+  {
+    "table_name": "auth_permission",
+    "constraint_name": "auth_permission_content_type_id_codename_01ab375a_uniq",
+    "constraint_type": "UNIQUE",
+    "column_name": "codename"
+  },
+  {
+    "table_name": "capital_capitalsocial",
+    "constraint_name": "capital_capitalsocial_junta_id_key",
+    "constraint_type": "UNIQUE",
+    "column_name": "junta_id"
+  },
+  {
+    "table_name": "capital_capitalsocial",
+    "constraint_name": "capital_capitalsocial_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "capital_capitalsocial",
+    "constraint_name": "capital_capitalsocial_junta_id_cbfcd976_fk_juntas_junta_id",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "junta_id"
+  },
+  {
+    "table_name": "capital_gastocapital",
+    "constraint_name": "capital_gastocapital_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "capital_gastocapital",
+    "constraint_name": "capital_gastocapital_capital_social_id_8d90766f_fk_capital_c",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "capital_social_id"
+  },
+  {
+    "table_name": "capital_ingresocapital",
+    "constraint_name": "capital_ingresocapital_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "capital_ingresocapital",
+    "constraint_name": "capital_ingresocapit_capital_social_id_cf144670_fk_capital_c",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "capital_social_id"
+  },
+  {
+    "table_name": "django_admin_log",
+    "constraint_name": "django_admin_log_user_id_c564eba6_fk_users_customuser_id",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "user_id"
+  },
+  {
+    "table_name": "django_admin_log",
+    "constraint_name": "django_admin_log_content_type_id_c4bce8eb_fk_django_co",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "content_type_id"
+  },
+  {
+    "table_name": "django_admin_log",
+    "constraint_name": "django_admin_log_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "django_content_type",
+    "constraint_name": "django_content_type_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "django_content_type",
+    "constraint_name": "django_content_type_app_label_model_76bd3d3b_uniq",
+    "constraint_type": "UNIQUE",
+    "column_name": "app_label"
+  },
+  {
+    "table_name": "django_content_type",
+    "constraint_name": "django_content_type_app_label_model_76bd3d3b_uniq",
+    "constraint_type": "UNIQUE",
+    "column_name": "model"
+  },
+  {
+    "table_name": "django_migrations",
+    "constraint_name": "django_migrations_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "django_session",
+    "constraint_name": "django_session_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "session_key"
+  },
+  {
+    "table_name": "juntas_junta",
+    "constraint_name": "juntas_junta_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "juntas_junta_members",
+    "constraint_name": "juntas_junta_members_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "juntas_junta_members",
+    "constraint_name": "juntas_junta_members_customuser_id_4d26fc01_fk_users_cus",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "customuser_id"
+  },
+  {
+    "table_name": "juntas_junta_members",
+    "constraint_name": "juntas_junta_members_junta_id_5668d006_fk_juntas_junta_id",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "junta_id"
+  },
+  {
+    "table_name": "juntas_junta_members",
+    "constraint_name": "juntas_junta_members_junta_id_customuser_id_fb41a6a5_uniq",
+    "constraint_type": "UNIQUE",
+    "column_name": "junta_id"
+  },
+  {
+    "table_name": "juntas_junta_members",
+    "constraint_name": "juntas_junta_members_junta_id_customuser_id_fb41a6a5_uniq",
+    "constraint_type": "UNIQUE",
+    "column_name": "customuser_id"
+  },
+  {
+    "table_name": "multas_multa",
+    "constraint_name": "multas_multa_member_id_cb47611a_fk_users_customuser_id",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "member_id"
+  },
+  {
+    "table_name": "multas_multa",
+    "constraint_name": "multas_multa_junta_id_293a4a1d_fk_juntas_junta_id",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "junta_id"
+  },
+  {
+    "table_name": "multas_multa",
+    "constraint_name": "multas_multa_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "prestamos_pagosprestamos",
+    "constraint_name": "prestamos_pagosprestamos_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "prestamos_pagosprestamos",
+    "constraint_name": "prestamos_pagosprest_prestamo_id_f65b9f4a_fk_prestamos",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "prestamo_id"
+  },
+  {
+    "table_name": "prestamos_prestamo",
+    "constraint_name": "prestamos_prestamo_junta_id_6a262ce6_fk_juntas_junta_id",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "junta_id"
+  },
+  {
+    "table_name": "prestamos_prestamo",
+    "constraint_name": "prestamos_prestamo_member_id_732abefb_fk_users_customuser_id",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "member_id"
+  },
+  {
+    "table_name": "prestamos_prestamo",
+    "constraint_name": "prestamos_prestamo_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "users_customuser",
+    "constraint_name": "users_customuser_username_key",
+    "constraint_type": "UNIQUE",
+    "column_name": "username"
+  },
+  {
+    "table_name": "users_customuser",
+    "constraint_name": "users_customuser_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "users_customuser",
+    "constraint_name": "users_customuser_email_6445acef_uniq",
+    "constraint_type": "UNIQUE",
+    "column_name": "email"
+  },
+  {
+    "table_name": "users_customuser_groups",
+    "constraint_name": "users_customuser_gro_customuser_id_958147bf_fk_users_cus",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "customuser_id"
+  },
+  {
+    "table_name": "users_customuser_groups",
+    "constraint_name": "users_customuser_groups_group_id_01390b14_fk_auth_group_id",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "group_id"
+  },
+  {
+    "table_name": "users_customuser_groups",
+    "constraint_name": "users_customuser_groups_customuser_id_group_id_76b619e3_uniq",
+    "constraint_type": "UNIQUE",
+    "column_name": "customuser_id"
+  },
+  {
+    "table_name": "users_customuser_groups",
+    "constraint_name": "users_customuser_groups_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "users_customuser_groups",
+    "constraint_name": "users_customuser_groups_customuser_id_group_id_76b619e3_uniq",
+    "constraint_type": "UNIQUE",
+    "column_name": "group_id"
+  },
+  {
+    "table_name": "users_customuser_user_permissions",
+    "constraint_name": "users_customuser_user_pe_customuser_id_permission_7a7debf6_uniq",
+    "constraint_type": "UNIQUE",
+    "column_name": "customuser_id"
+  },
+  {
+    "table_name": "users_customuser_user_permissions",
+    "constraint_name": "users_customuser_use_customuser_id_5771478b_fk_users_cus",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "customuser_id"
+  },
+  {
+    "table_name": "users_customuser_user_permissions",
+    "constraint_name": "users_customuser_user_permissions_pkey",
+    "constraint_type": "PRIMARY KEY",
+    "column_name": "id"
+  },
+  {
+    "table_name": "users_customuser_user_permissions",
+    "constraint_name": "users_customuser_use_permission_id_baaa2f74_fk_auth_perm",
+    "constraint_type": "FOREIGN KEY",
+    "column_name": "permission_id"
+  },
+  {
+    "table_name": "users_customuser_user_permissions",
+    "constraint_name": "users_customuser_user_pe_customuser_id_permission_7a7debf6_uniq",
+    "constraint_type": "UNIQUE",
+    "column_name": "permission_id"
+  }
+]
+
+
+CLERK_API=https://api.clerk.com
+CLERK_PUBLIC_KEY=pk_test_bmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2JA
+CLERK_FRONTEND_API_URL=https://native-mutt-80.clerk.accounts.dev
+CLERK_JWKS_URL=https://native-mutt-80.clerk.accounts.dev/.well-known/jwks.json
+CLERK_SECRET_KEY=sk_test_dLJnwejEAOjAIzSSdGbcH6AuRkr6ZvnWcblDjzuMwO
+
+SUPABASE_DB_HOST="aws-0-us-west-1.pooler.supabase.com"
+SUPABASE_DB_NAME="postgres"
+SUPABASE_DB_PASSWORD="PacasVentures2024"
+SUPABASE_DB_PORT="6543"
+SUPABASE_DB_USER="postgres.khmzkxyorxxvojjanpas"
+SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtobXpreHlvcnh4dm9qamFucGFzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcyOTU0MzYyOCwiZXhwIjoyMDQ1MTE5NjI4fQ.gjPk5F-7GQQhdMUkLfeuTE7pLfw_mdJ5_OEXzp0VFzM"
+SUPABASE_URL="https://khmzkxyorxxvojjanpas.supabase.co"
