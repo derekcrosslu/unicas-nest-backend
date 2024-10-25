@@ -36,18 +36,19 @@ Content-Type: application/json
 
 {
   "document_type": "DNI",
-  "document_number": "12345678",
-  "first_name": "John",
-  "last_name": "Doe",
-  "birth_date": "1990-01-01",
+  "document_number": "001",
+  "first_name": "Juan",
+  "last_name": "Perez",
+  "birth_date": "1972-04-22",
   "province": "Lima",
   "district": "Miraflores",
-  "address": "123 Main St",
+  "address": "Calle 123",
   "is_superuser": false
 }
 
 ### Update user role (Admin only)
-PUT {{baseUrl}}/users/USER_ID/role
+### PUT {{baseUrl}}/users/USER_ID/role
+PUT {{baseUrl}}/users/7c5c1902-aa5c-4e84-bcda-f22ad06078e3/role
 Authorization: Bearer {{dev_token}}
 Content-Type: application/json
 
@@ -58,7 +59,7 @@ Content-Type: application/json
 ### 3. Member Management
 
 ### Get member by DNI
-GET {{baseUrl}}/members/dni/12345678
+GET {{baseUrl}}/members/dni/07877781
 Authorization: Bearer {{dev_token}}
 
 ### Get member prestamos by DNI
@@ -82,11 +83,12 @@ GET {{baseUrl}}/members/junta/6fe6314e-6d8b-413b-b018-562fb4f65e01
 Authorization: Bearer {{dev_token}}
 
 ### Add member to junta
-POST {{baseUrl}}/members/JUNTA_ID/add/12345678
+POST {{baseUrl}}/members/6fe6314e-6d8b-413b-b018-562fb4f65e01/add/07877781
 Authorization: Bearer {{dev_token}}
 
 ### Remove member from junta
-DELETE {{baseUrl}}/members/JUNTA_ID/MEMBER_ID
+### DELETE {{baseUrl}}/members/JUNTA_ID/MEMBER_ID
+DELETE {{baseUrl}}/members/6fe6314e-6d8b-413b-b018-562fb4f65e01/f8c876d1-5efd-4a51-947f-6afd6a21c458
 Authorization: Bearer {{dev_token}}
 
 ### 4. Junta Management

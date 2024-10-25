@@ -48,7 +48,10 @@ export class MembersController {
   @Get('dni/:documentNumber')
   @ApiOperation({ summary: 'Get member by DNI' })
   async getMemberByDni(@Param('documentNumber') documentNumber: string) {
-    return this.usersService.findByUsername(documentNumber);
+    const member = await this.usersService.findByUsername(documentNumber);
+    console.log('documentNumber: ', documentNumber, typeof documentNumber);
+    console.log('member: ', member);
+    return member;
   }
 
   @Get('dni/:documentNumber/prestamos')
@@ -126,9 +129,13 @@ export class MembersController {
     @Param('documentNumber') documentNumber: string,
     @Request() req: RequestWithUser,
   ) {
+    const member = await this.usersService.findByUsername(documentNumber);
+    if (!member) {
+      return [];
+    }
     return this.juntasService.addMember(
       juntaId,
-      documentNumber,
+      member.email,
       req.user.id,
       req.user.role,
     );
