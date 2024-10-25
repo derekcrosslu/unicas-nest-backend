@@ -68,7 +68,11 @@ export class AccionesController {
   @Get('user')
   @ApiOperation({ summary: 'Get all acciones for current user' })
   async findByUser(@Request() req: RequestWithUser) {
-    return this.accionesService.findByUser(req.user.id);
+    return this.accionesService.findByMember(
+      req.user.id,
+      req.user.id,
+      req.user.role,
+    );
   }
 
   @Get(':id')

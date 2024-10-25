@@ -1,14 +1,13 @@
 import { Module } from '@nestjs/common';
-import { JuntasService } from './juntas.service';
 import { JuntasController } from './juntas.controller';
-import { JuntaUsersController } from './junta-users.controller';
+import { JuntasService } from './juntas.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [PrismaModule, UsersModule],
-  controllers: [JuntasController, JuntaUsersController],
+  controllers: [JuntasController],
   providers: [JuntasService],
-  exports: [JuntasService],
+  exports: [JuntasService], // Export JuntasService for use in other modules
 })
 export class JuntasModule {}

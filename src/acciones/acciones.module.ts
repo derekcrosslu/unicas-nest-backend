@@ -7,6 +7,6 @@ import { PrismaModule } from '../prisma/prisma.module';
   imports: [PrismaModule],
   controllers: [AccionesController],
   providers: [AccionesService],
-  exports: [AccionesService],
+  exports: [AccionesService], // Export AccionesService for use in other modules
 })
 export class AccionesModule {}

@@ -10,6 +10,41 @@ import { UserRole } from '../types/user-role';
 export class MultasService {
   constructor(private prisma: PrismaService) {}
 
+  async findByMember(memberId: string, userId: string, userRole: UserRole) {
+    // Admin can see all multas
+    if (userRole === 'ADMIN') {
+      return this.prisma.multa.findMany({
+        where: { memberId },
+        include: {
+          member: true,
+          junta: true,
+        },
+      });
+    }
+
+    // Users can only see their own multas
+    if (userId !== memberId && userRole !== 'FACILITATOR') {
+      throw new ForbiddenException(
+        'You do not have permission to view these multas',
+      );
+    }
+
+    // Get multas where user is either the member or the facilitator of the junta
+    return this.prisma.multa.findMany({
+      where: {
+        memberId,
+        OR: [{ junta: { createdById: userId } }, { memberId: userId }],
+      },
+      include: {
+        member: true,
+        junta: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
   async create(
     juntaId: string,
     memberId: string,
@@ -88,6 +123,9 @@ export class MultasService {
       include: {
         member: true,
         junta: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
     });
   }

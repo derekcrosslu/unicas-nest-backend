@@ -10,6 +10,57 @@ import { UserRole } from '../types/user-role';
 export class AccionesService {
   constructor(private prisma: PrismaService) {}
 
+  async findByUser(userId: string) {
+    return this.prisma.accion.findMany({
+      where: { memberId: userId },
+      include: {
+        member: true,
+        junta: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async findByMember(memberId: string, userId: string, userRole: UserRole) {
+    // Admin can see all acciones
+    if (userRole === 'ADMIN') {
+      return this.prisma.accion.findMany({
+        where: { memberId },
+        include: {
+          member: true,
+          junta: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+    }
+
+    // Users can only see their own acciones
+    if (userId !== memberId && userRole !== 'FACILITATOR') {
+      throw new ForbiddenException(
+        'You do not have permission to view these acciones',
+      );
+    }
+
+    // Get acciones where user is either the member or the facilitator of the junta
+    return this.prisma.accion.findMany({
+      where: {
+        memberId,
+        OR: [{ junta: { createdById: userId } }, { memberId: userId }],
+      },
+      include: {
+        member: true,
+        junta: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
   async create(
     juntaId: string,
     memberId: string,
@@ -90,15 +141,8 @@ export class AccionesService {
         member: true,
         junta: true,
       },
-    });
-  }
-
-  async findByUser(userId: string) {
-    return this.prisma.accion.findMany({
-      where: { memberId: userId },
-      include: {
-        member: true,
-        junta: true,
+      orderBy: {
+        createdAt: 'desc',
       },
     });
   }

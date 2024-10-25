@@ -4,6 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { json } from 'express';
+import { ClerkGuard } from './auth/guards/clerk.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -27,6 +28,10 @@ async function bootstrap() {
 
   // Global prefix
   app.setGlobalPrefix('api');
+
+  // Global guards
+  const clerkGuard = app.get(ClerkGuard);
+  app.useGlobalGuards(clerkGuard);
 
   // Validation
   app.useGlobalPipes(
