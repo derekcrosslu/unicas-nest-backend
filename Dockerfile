@@ -8,7 +8,8 @@ RUN apk update && \
     bash \
     curl \
     jq \
-    tzdata
+    tzdata \
+    && rm -rf /var/cache/apk/*
 
 WORKDIR /app
 
@@ -44,11 +45,7 @@ echo "Starting application initialization..."\n\
 # Function to check database connection\n\
 check_db() {\n\
     export PGPASSWORD=$POSTGRES_PASSWORD\n\
-    if psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\\q" > /dev/null 2>&1; then\n\
-        return 0\n\
-    else\n\
-        return 1\n\
-    fi\n\
+    psql "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}" -c "\\q" > /dev/null 2>&1\n\
 }\n\
 \n\
 # Wait for database\n\
@@ -62,10 +59,7 @@ for i in $(seq 1 $MAX_RETRIES); do\n\
     if [ $i -eq $MAX_RETRIES ]; then\n\
         echo "Error: Could not connect to PostgreSQL after $MAX_RETRIES attempts"\n\
         echo "Database connection details:"\n\
-        echo "Host: $POSTGRES_HOST"\n\
-        echo "Port: $POSTGRES_PORT"\n\
-        echo "User: $POSTGRES_USER"\n\
-        echo "Database: $POSTGRES_DB"\n\
+        echo "Connection URL: postgresql://${POSTGRES_USER}:****@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"\n\
         exit 1\n\
     fi\n\
 \n\
@@ -80,7 +74,7 @@ if npx prisma migrate deploy; then\n\
 else\n\
     echo "Error: Database migration failed"\n\
     echo "Checking database connection..."\n\
-    psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT version();" || true\n\
+    psql "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}" -c "SELECT version();" || true\n\
     exit 1\n\
 fi\n\
 \n\
@@ -103,5 +97,9 @@ EXPOSE 3000
 # Health check with increased timeout and better error handling
 HEALTHCHECK --interval=30s --timeout=30s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:3000/health || (echo "Health check failed" && exit 1)
+
+# Set environment variables
+ENV NODE_ENV=production \
+    TZ=UTC
 
 CMD ["/app/start.sh"]

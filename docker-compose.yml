@@ -33,6 +33,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       NODE_ENV: production
+      TZ: UTC
 
 volumes:
   postgres_data:
