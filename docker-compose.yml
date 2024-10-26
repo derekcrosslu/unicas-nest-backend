@@ -5,24 +5,16 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - '${PORT}:${PORT}'
+      - '${PORT:-3000}:${PORT:-3000}'
     environment:
       DATABASE_URL: postgresql://postgres:DfsWbOwGHJLLveifLbUDnWyloOtmfRmU@autorack.proxy.rlwy.net:48766/railway
       NODE_ENV: development
-      PORT: ${PORT}
+      PORT: ${PORT:-3000}
       HOST: '0.0.0.0'
     volumes:
       - ./src:/app/src
     healthcheck:
-      test:
-        [
-          'CMD',
-          'wget',
-          '--no-verbose',
-          '--tries=1',
-          '--spider',
-          'http://localhost:${PORT}/api/health',
-        ]
+      test: ['CMD', 'curl', '-f', 'http://localhost:${PORT:-3000}/api/health']
       interval: 30s
       timeout: 10s
       retries: 3

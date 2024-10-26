@@ -4,21 +4,27 @@ import { Request, Response, NextFunction } from 'express';
 @Injectable()
 export class LoggerMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
-    console.log(`${req.method} ${req.url}`, {
+    const startTime = Date.now();
+
+    console.log(`[Request] ${req.method} ${req.url}`, {
       headers: {
         origin: req.headers.origin,
         'content-type': req.headers['content-type'],
         authorization: req.headers.authorization,
       },
+      query: req.query,
+      params: req.params,
+      body: req.body,
     });
 
     // Log response
     const originalSend = res.send;
     res.send = function (body) {
-      console.log('Response:', {
+      const responseTime = Date.now() - startTime;
+      console.log(`[Response] ${req.method} ${req.url}`, {
         statusCode: res.statusCode,
-        body: body,
-        path: req.url,
+        responseTime: `${responseTime}ms`,
+        body: typeof body === 'string' ? JSON.parse(body) : body,
       });
       return originalSend.call(this, body);
     };
