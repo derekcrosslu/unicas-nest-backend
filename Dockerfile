@@ -1,6 +1,30 @@
+FROM node:18-alpine3.18 as builder
+
+# Install build dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Generate Prisma Client and build
+RUN npx prisma generate && \
+    npm run build
+
+# Production image
 FROM node:18-alpine3.18
 
-# Install system dependencies
+# Install production dependencies
 RUN apk update && \
     apk add --no-cache \
     postgresql-client \
@@ -16,20 +40,15 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with specific npm version
-RUN npm install -g npm@9.8.1 && \
-    npm ci
+# Install production dependencies
+RUN npm ci --only=production
 
-# Copy prisma schema and generate client
-COPY prisma ./prisma/
+# Copy built application
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Copy the rest of the application
-COPY . .
-
-# Build the application
-RUN npm run build
-
-# Create startup script with better error handling and database initialization
+# Create startup script
 RUN echo '#!/bin/bash\n\
 set -e\n\
 \n\
@@ -76,15 +95,6 @@ if [ -z "$DATABASE_URL" ]; then\n\
 fi\n\
 \n\
 echo "Using database URL: ${DATABASE_URL//:${POSTGRES_PASSWORD}@/:****@}"\n\
-\n\
-# Generate Prisma Client\n\
-echo "Generating Prisma Client..."\n\
-if npx prisma generate; then\n\
-    echo "Prisma Client generated successfully"\n\
-else\n\
-    echo "Error: Prisma Client generation failed"\n\
-    exit 1\n\
-fi\n\
 \n\
 # Run database migrations\n\
 echo "Running database migrations..."\n\
