@@ -36,32 +36,18 @@ RUN npm ci --only=production
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Create startup script
-RUN echo '#!/bin/sh\n\
-set -e\n\
-\n\
-echo "Starting application initialization..."\n\
-\n\
-# Generate Prisma Client\n\
-echo "Generating Prisma Client..."\n\
-npx prisma generate\n\
-\n\
-# Run database migrations\n\
-echo "Running database migrations..."\n\
-npx prisma migrate deploy\n\
-\n\
-echo "Starting the application..."\n\
-exec npm run start:prod' > /app/start.sh
-
-RUN chmod +x /app/start.sh
+# Copy start script
+COPY start.sh .
+RUN chmod +x start.sh
 
 EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=30s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 # Set environment variables
 ENV NODE_ENV=production
 
-CMD ["/app/start.sh"]
+# Use the start script
+CMD ["./start.sh"]
