@@ -12,5 +12,6 @@ numReplicas = 1
 
 [deploy.env]
 NODE_ENV = "production"
+TZ = "UTC"
 
 # Database configuration will be automatically injected by Railway
