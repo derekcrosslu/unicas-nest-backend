@@ -1,47 +1,45 @@
-# Build stage
-FROM node:20-alpine AS builder
+# Base image
+FROM node:18-alpine
 
-# Set working directory
+# Install PostgreSQL client
+RUN apk add --no-cache postgresql-client
+
+# Create app directory
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies
-RUN npm ci
+# Install app dependencies
+RUN npm install
 
-# Copy source code
+# Copy app source
 COPY . .
 
-# Generate Prisma Client
+# Generate Prisma client
 RUN npx prisma generate
 
 # Build application
 RUN npm run build
 
-# Production stage
-FROM node:20-alpine
-
-# Set working directory
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-COPY prisma ./prisma/
-
-# Install production dependencies only
-RUN npm ci --only=production
-
-# Copy built application from builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-
-# Generate Prisma Client
-RUN npx prisma generate
-
 # Expose port
 EXPOSE 3000
 
-# Start application
-CMD ["npm", "run", "start:prod"]
+# Create a script to wait for PostgreSQL and start the application
+RUN echo '#!/bin/sh\n\
+while ! pg_isready -h $DATABASE_HOST -p $DATABASE_PORT -U $DATABASE_USER; do\n\
+  echo "Waiting for PostgreSQL to start...";\n\
+  sleep 2;\n\
+done\n\
+\n\
+echo "Running database migrations..."\n\
+npx prisma migrate deploy\n\
+\n\
+echo "Starting the application..."\n\
+npm run start:prod' > /app/start.sh
+
+RUN chmod +x /app/start.sh
+
+# Start the application
+CMD ["/app/start.sh"]
