@@ -4,7 +4,7 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "/app/start.sh"
-healthcheckPath = "/health"
+healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
@@ -13,5 +13,3 @@ numReplicas = 1
 [deploy.env]
 NODE_ENV = "production"
 TZ = "UTC"
-
-# Database configuration will be automatically injected by Railway
