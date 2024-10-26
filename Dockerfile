@@ -25,12 +25,6 @@ RUN npm run build
 # Production image
 FROM node:18-alpine3.18
 
-# Install minimal production dependencies
-RUN apk add --no-cache \
-    curl \
-    tzdata \
-    && rm -rf /var/cache/apk/*
-
 WORKDIR /app
 
 # Copy package files and install production dependencies
@@ -48,14 +42,13 @@ set -e\n\
 \n\
 echo "Starting application initialization..."\n\
 \n\
+# Generate Prisma Client\n\
+echo "Generating Prisma Client..."\n\
+npx prisma generate\n\
+\n\
 # Run database migrations\n\
 echo "Running database migrations..."\n\
-if npx prisma migrate deploy; then\n\
-    echo "Database migrations completed successfully"\n\
-else\n\
-    echo "Error: Database migration failed"\n\
-    exit 1\n\
-fi\n\
+npx prisma migrate deploy\n\
 \n\
 echo "Starting the application..."\n\
 exec npm run start:prod' > /app/start.sh
@@ -66,10 +59,9 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:3000/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
 # Set environment variables
-ENV NODE_ENV=production \
-    TZ=UTC
+ENV NODE_ENV=production
 
 CMD ["/app/start.sh"]
