@@ -1,37 +1,16 @@
-# Dependencies
 node_modules
 npm-debug.log
-
-# Git
 .git
-.gitignore
-
-# Development files
 .env
 .env.*
 *.md
-.prettierrc
-.eslintrc.js
-test-auth.http
-
-# Build output
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
 dist
-build
-
-# IDE files
-.idea
-.vscode
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Temporary files
-*.log
-*.tmp
-.DS_Store
-
-# Test files
-test
 coverage
+.vscode
+.idea
+*.log
+tmp
