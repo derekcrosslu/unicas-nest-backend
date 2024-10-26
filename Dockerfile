@@ -4,22 +4,24 @@ FROM node:18-alpine3.18 as builder
 RUN apk add --no-cache \
     python3 \
     make \
-    g++
+    g++ \
+    postgresql-client
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+COPY prisma ./prisma/
 
 # Install dependencies
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Generate Prisma Client
+RUN npx prisma generate
 
-# Generate Prisma Client and build
-RUN npx prisma generate && \
-    npm run build
+# Copy source code and build
+COPY . .
+RUN npm run build
 
 # Production image
 FROM node:18-alpine3.18
@@ -37,15 +39,13 @@ RUN apk update && \
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files and install production dependencies
 COPY package*.json ./
-
-# Install production dependencies
+COPY prisma ./prisma/
 RUN npm ci --only=production
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Create startup script
