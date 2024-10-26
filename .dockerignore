@@ -1,5 +1,6 @@
 node_modules
 npm-debug.log
+dist
 .git
 .env
 .env.*
@@ -8,9 +9,3 @@ npm-debug.log
 .dockerignore
 Dockerfile
 docker-compose.yml
-dist
-coverage
-.vscode
-.idea
-*.log
-tmp
