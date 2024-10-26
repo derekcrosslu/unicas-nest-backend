@@ -5,10 +5,11 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - '3000:3000'
+      - '${PORT}:${PORT}'
     environment:
       DATABASE_URL: postgresql://postgres:DfsWbOwGHJLLveifLbUDnWyloOtmfRmU@autorack.proxy.rlwy.net:48766/railway
       NODE_ENV: development
+      PORT: ${PORT}
       HOST: '0.0.0.0'
     volumes:
       - ./src:/app/src
@@ -20,7 +21,7 @@ services:
           '--no-verbose',
           '--tries=1',
           '--spider',
-          'http://localhost:3000/api/health',
+          'http://localhost:${PORT}/api/health',
         ]
       interval: 30s
       timeout: 10s
