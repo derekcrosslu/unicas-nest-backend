@@ -5,15 +5,17 @@ RUN apk update && \
     apk add --no-cache \
     postgresql-client \
     bash \
-    curl
+    curl \
+    jq
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies with specific npm version
+RUN npm install -g npm@9.8.1 && \
+    npm ci
 
 # Copy prisma schema and generate client
 COPY prisma ./prisma/
@@ -25,22 +27,30 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Create startup script with better error handling
+# Create startup script with better error handling and database initialization
 RUN echo '#!/bin/bash\n\
+set -e\n\
 \n\
 MAX_RETRIES=30\n\
 RETRY_INTERVAL=2\n\
 \n\
-echo "Waiting for PostgreSQL to start..."\n\
+echo "Starting application initialization..."\n\
 \n\
+# Function to check database connection\n\
+check_db() {\n\
+    pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" > /dev/null 2>&1\n\
+}\n\
+\n\
+# Wait for database\n\
+echo "Waiting for PostgreSQL to start..."\n\
 for i in $(seq 1 $MAX_RETRIES); do\n\
-    if pg_isready -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER; then\n\
-        echo "PostgreSQL is ready!"\n\
+    if check_db; then\n\
+        echo "Successfully connected to PostgreSQL!"\n\
         break\n\
     fi\n\
 \n\
     if [ $i -eq $MAX_RETRIES ]; then\n\
-        echo "Error: PostgreSQL did not become ready in time"\n\
+        echo "Error: Could not connect to PostgreSQL after $MAX_RETRIES attempts"\n\
         exit 1\n\
     fi\n\
 \n\
@@ -48,9 +58,21 @@ for i in $(seq 1 $MAX_RETRIES); do\n\
     sleep $RETRY_INTERVAL\n\
 done\n\
 \n\
+# Run database migrations\n\
 echo "Running database migrations..."\n\
-if ! npx prisma migrate deploy; then\n\
-    echo "Error: Failed to run database migrations"\n\
+if npx prisma migrate deploy; then\n\
+    echo "Database migrations completed successfully"\n\
+else\n\
+    echo "Error: Database migration failed"\n\
+    exit 1\n\
+fi\n\
+\n\
+# Generate Prisma Client\n\
+echo "Generating Prisma Client..."\n\
+if npx prisma generate; then\n\
+    echo "Prisma Client generated successfully"\n\
+else\n\
+    echo "Error: Prisma Client generation failed"\n\
     exit 1\n\
 fi\n\
 \n\
