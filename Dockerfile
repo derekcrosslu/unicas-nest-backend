@@ -36,15 +36,16 @@ RUN npm ci --only=production
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Copy start script and env file
+# Copy start script
 COPY start.sh .
-COPY .env .
 RUN chmod +x start.sh
 
 # Set default environment variables
-ENV DATABASE_URL=postgresql://postgres:DfsWbOwGHJLLveifLbUDnWyloOtmfRmU@autorack.proxy.rlwy.net:44451/railway \
-    NODE_ENV=production \
-    PORT=3000
+ENV DATABASE_URL="postgresql://postgres:DfsWbOwGHJLLveifLbUDnWyloOtmfRmU@autorack.proxy.rlwy.net:44451/railway" \
+    NODE_ENV="production" \
+    PORT="3000" \
+    JWT_SECRET="your-super-secret-key-change-this-in-production" \
+    FRONTEND_URL="http://localhost:3001"
 
 EXPOSE 3000
 
