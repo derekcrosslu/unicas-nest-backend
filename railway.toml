@@ -11,8 +11,8 @@ restartPolicyMaxRetries = 5
 numReplicas = 1
 
 [deploy.env]
+DATABASE_URL = "${DATABASE_URL}"
 NODE_ENV = "production"
 TZ = "UTC"
-DATABASE_URL = "${{ Postgres.DATABASE_URL }}"
 JWT_SECRET = "your-super-secret-key-change-this-in-production"
 FRONTEND_URL = "http://localhost:3001"

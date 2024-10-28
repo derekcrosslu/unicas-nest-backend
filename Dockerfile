@@ -15,9 +15,6 @@ COPY prisma ./prisma/
 # Install dependencies
 RUN npm ci
 
-# Generate Prisma Client
-RUN npx prisma generate
-
 # Copy source code and build
 COPY . .
 RUN npm run build
@@ -42,9 +39,7 @@ RUN chmod +x start.sh
 
 # Set default environment variables
 ENV NODE_ENV="production" \
-    PORT="3000" \
-    JWT_SECRET="your-super-secret-key-change-this-in-production" \
-    FRONTEND_URL="http://localhost:3001"
+    PORT="3000"
 
 EXPOSE 3000
 
