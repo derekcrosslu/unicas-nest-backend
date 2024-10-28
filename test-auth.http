@@ -1,4 +1,5 @@
 @baseUrl = http://localhost:3000/api
+@baseUrlProd  = https://unicas-nest-backend-production.up.railway.app/api
 @authToken = {{login.response.body.access_token}}
 
 ### Important Notes:
@@ -18,10 +19,10 @@ POST {{baseUrl}}/auth/register/admin
 Content-Type: application/json
 
 {
-    "email": "admin@example.com",
-    "password": "admin123",
-    "username": "admin",
-    "phone_number": "999999999"
+    "email": "admin@admin.com",
+    "password": "123123",
+    "username": "admin1",
+    "phone_number": "912345678"
 }
 
 ### Register new regular user with email (optional)
@@ -41,9 +42,9 @@ POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-    "username": "phoneuser",
+    "username": "001",
     "password": "password123",
-    "phone_number": "987654321"
+    "phone_number": "987654322"
 }
 
 ### Login with email
@@ -73,7 +74,7 @@ Authorization: Bearer {{authToken}}
 ### 2. Public Endpoints
 
 ### Health check
-GET {{baseUrl}}/health
+GET {{baseUrlProd}}/health
 
 ### 3. User Management (Admin)
 
