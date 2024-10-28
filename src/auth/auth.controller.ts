@@ -15,6 +15,11 @@ import { Public } from './decorators/public.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Request } from 'express';
 
+// Extend Express Request type to include user property
+interface RequestWithUser extends Request {
+  user: any;
+}
+
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
@@ -138,7 +143,7 @@ export class AuthController {
       },
     },
   })
-  getProfile(@Req() req: Request) {
+  getProfile(@Req() req: RequestWithUser) {
     console.log('Profile request received for user:', req.user);
     return req.user;
   }
