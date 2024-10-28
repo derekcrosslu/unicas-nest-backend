@@ -13,6 +13,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'https://unicas-frontend-production.up.railway.app',
+      'https://unicas-frontend-production-f12d.up.railway.app/sign-in',
       'http://localhost:3001', // Frontend URL
       configService.get('FRONTEND_URL'),
     ],
