@@ -13,6 +13,6 @@ numReplicas = 1
 [deploy.env]
 NODE_ENV = "production"
 TZ = "UTC"
-DATABASE_URL = "postgresql://postgres:DfsWbOwGHJLLveifLbUDnWyloOtmfRmU@autorack.proxy.rlwy.net:44451/railway"
+DATABASE_URL = "${{ Postgres.DATABASE_URL }}"
 JWT_SECRET = "your-super-secret-key-change-this-in-production"
 FRONTEND_URL = "http://localhost:3001"

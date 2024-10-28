@@ -41,8 +41,7 @@ COPY start.sh .
 RUN chmod +x start.sh
 
 # Set default environment variables
-ENV DATABASE_URL="postgresql://postgres:DfsWbOwGHJLLveifLbUDnWyloOtmfRmU@autorack.proxy.rlwy.net:44451/railway" \
-    NODE_ENV="production" \
+ENV NODE_ENV="production" \
     PORT="3000" \
     JWT_SECRET="your-super-secret-key-change-this-in-production" \
     FRONTEND_URL="http://localhost:3001"
