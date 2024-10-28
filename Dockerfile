@@ -36,18 +36,21 @@ RUN npm ci --only=production
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Copy start script
+# Copy start script and env file
 COPY start.sh .
+COPY .env .
 RUN chmod +x start.sh
+
+# Set default environment variables
+ENV DATABASE_URL=postgresql://postgres:DfsWbOwGHJLLveifLbUDnWyloOtmfRmU@autorack.proxy.rlwy.net:44451/railway \
+    NODE_ENV=production \
+    PORT=3000
 
 EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=30s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
-
-# Set environment variables
-ENV NODE_ENV=production
 
 # Use the start script
 CMD ["./start.sh"]

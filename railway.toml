@@ -13,3 +13,4 @@ numReplicas = 1
 [deploy.env]
 NODE_ENV = "production"
 TZ = "UTC"
+DATABASE_URL = "postgresql://postgres:DfsWbOwGHJLLveifLbUDnWyloOtmfRmU@autorack.proxy.rlwy.net:44451/railway"
