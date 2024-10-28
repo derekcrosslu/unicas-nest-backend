@@ -6,7 +6,7 @@ export class LoggerMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     const startTime = Date.now();
 
-    console.log(`[Request] ${req.method} ${req.url}`, {
+    console.log('1', `[Request] ${req.method} ${req.url}`, {
       headers: {
         origin: req.headers.origin,
         'content-type': req.headers['content-type'],
@@ -21,7 +21,7 @@ export class LoggerMiddleware implements NestMiddleware {
     const originalSend = res.send;
     res.send = function (body) {
       const responseTime = Date.now() - startTime;
-      console.log(`[Response] ${req.method} ${req.url}`, {
+      console.log('2', `[Response] ${req.method} ${req.url}`, {
         statusCode: res.statusCode,
         responseTime: `${responseTime}ms`,
         body: typeof body === 'string' ? JSON.parse(body) : body,

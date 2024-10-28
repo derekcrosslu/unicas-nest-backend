@@ -49,8 +49,6 @@ export class MembersController {
   @ApiOperation({ summary: 'Get member by DNI' })
   async getMemberByDni(@Param('documentNumber') documentNumber: string) {
     const member = await this.usersService.findByUsername(documentNumber);
-    console.log('documentNumber: ', documentNumber, typeof documentNumber);
-    console.log('member: ', member);
     return member;
   }
 

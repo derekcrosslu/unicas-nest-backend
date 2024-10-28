@@ -1,101 +1,140 @@
 @baseUrl = http://localhost:3000/api
-@dev_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzJudDVwSm1CUDNkUTBxYXZsWGJSQUdMSVl4bSIsImlzcyI6Imh0dHBzOi8vbmF0aXZlLW11dHQtODAuY2xlcmsuYWNjb3VudHMuZGV2IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAxIiwiZXhwIjoxNzMwMDAxNDMzLCJpYXQiOjE3Mjk5OTc4MzMsImF6cCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMSJ9.sSFC-DVhIYoWpHtX7nTF-iSJcpIyEYutzyC6AASzzfI
+@authToken = {{login.response.body.access_token}}
 
 ### Important Notes:
 # 1. Backend runs on http://localhost:3000
 # 2. Frontend runs on http://localhost:3001
 # 3. All API requests should go to http://localhost:3000/api/...
 # 4. Set up:
-#    - Execute "Get development token" request
-#    - Copy token from response
-#    - Replace @dev_token value above with the copied token
+#    - Execute "Register Admin" request first
+#    - Then "Login" with email or phone to get admin token
+#    - Token will be automatically used for subsequent requests
 
-### 1. Public Endpoints (no auth required)
+### 1. Authentication Endpoints
+
+### Register new admin user
+# @name registerAdmin
+POST {{baseUrl}}/auth/register/admin
+Content-Type: application/json
+
+{
+    "email": "admin@example.com",
+    "password": "admin123",
+    "username": "admin",
+    "phone_number": "999999999"
+}
+
+### Register new regular user with email (optional)
+# @name register
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+    "email": "test@example.com",
+    "password": "password123",
+    "username": "testuser",
+    "phone_number": "+1234567890"
+}
+
+### Register new user with phone only
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+    "username": "phoneuser",
+    "password": "password123",
+    "phone_number": "987654321"
+}
+
+### Login with email
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@example.com",
+    "password": "admin123"
+}
+
+### Login with phone number
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "phone_number": "999999999",
+    "password": "admin123"
+}
+
+### Get user profile
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{authToken}}
+
+### 2. Public Endpoints
 
 ### Health check
 GET {{baseUrl}}/health
 
-### Get development token
-# @name getDevToken
-GET {{baseUrl}}/health/dev-token
-
-### 2. User Management (Admin)
+### 3. User Management (Admin)
 
 ### Get all users (Admin only)
 GET {{baseUrl}}/users
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
 ### Get current user profile
-GET {{baseUrl}}/users/me
-Authorization: Bearer {{dev_token}}
-
-### Create a new user
-POST {{baseUrl}}/users
-Authorization: Bearer {{dev_token}}
-Content-Type: application/json
-
-{
-  "document_type": "DNI",
-  "document_number": "001",
-  "first_name": "Juan",
-  "last_name": "Perez",
-  "birth_date": "1972-04-22",
-  "province": "Lima",
-  "district": "Miraflores",
-  "address": "Calle 123",
-  "is_superuser": false
-}
+GET {{baseUrl}}/users/706a422e-bb86-4e97-87ed-7d9eb7c84fca
+Authorization: Bearer {{authToken}}
 
 ### Update user role (Admin only)
 ### PUT {{baseUrl}}/users/USER_ID/role
-PUT {{baseUrl}}/users/7c5c1902-aa5c-4e84-bcda-f22ad06078e3/role
-Authorization: Bearer {{dev_token}}
+PUT {{baseUrl}}/users/d9f974ff-5b12-45f8-a750-e012c5447b5a/role
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "role": "FACILITATOR"
+  "role": "ADMIN"
 }
 
-### 3. Member Management
+### 4. Member Management
 
 ### Get member by DNI
 GET {{baseUrl}}/members/dni/07877781
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
 ### Get member prestamos by DNI
 GET {{baseUrl}}/members/dni/12345678/prestamos
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
 ### Get member pagos by DNI
 GET {{baseUrl}}/members/dni/12345678/pagos
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
 ### Get member multas by DNI
 GET {{baseUrl}}/members/dni/12345678/multas
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
 ### Get member acciones by DNI
 GET {{baseUrl}}/members/dni/12345678/acciones
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
 ### Get all members of a junta
 GET {{baseUrl}}/members/junta/6fe6314e-6d8b-413b-b018-562fb4f65e01
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
 ### Add member to junta
 POST {{baseUrl}}/members/6fe6314e-6d8b-413b-b018-562fb4f65e01/add/07877781
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
 ### Remove member from junta
 ### DELETE {{baseUrl}}/members/JUNTA_ID/MEMBER_ID
 DELETE {{baseUrl}}/members/6fe6314e-6d8b-413b-b018-562fb4f65e01/f8c876d1-5efd-4a51-947f-6afd6a21c458
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
-### 4. Junta Management
+### 5. Junta Management
 
 ### Create a new junta
 POST {{baseUrl}}/juntas
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
@@ -106,27 +145,21 @@ Content-Type: application/json
 
 ### Get all juntas
 GET {{baseUrl}}/juntas
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
 ### Get specific junta
 GET {{baseUrl}}/juntas/JUNTA_ID
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
-
-
-
-
-### 5. Financial Management
+### 6. Financial Management
 
 ### Get all prestamos for a Junta
-### GET {{baseUrl}}/prestamos/junta/JUNTA_ID
 GET {{baseUrl}}/prestamos/junta/6fe6314e-6d8b-413b-b018-562fb4f65e01
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
 ### Create a new prestamo
-### POST {{baseUrl}}/prestamos
 POST {{baseUrl}}/prestamos
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
@@ -137,9 +170,8 @@ Content-Type: application/json
 }
 
 ### Create a new pago
-### POST {{baseUrl}}/prestamos/PRESTAMO_ID/pagos
 POST {{baseUrl}}/prestamos/6a88f1d8-b1cd-499e-ab17-1e9278ef0ae4/pagos
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
@@ -148,13 +180,12 @@ Content-Type: application/json
 }
 
 ### Get pagos by junta
-### GET {{baseUrl}}/prestamos/junta/JUNTA_ID/pagos
 GET {{baseUrl}}/prestamos/junta/6fe6314e-6d8b-413b-b018-562fb4f65e01/pagos
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
 ### Create a new multa
 POST {{baseUrl}}/multas
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
@@ -166,11 +197,11 @@ Content-Type: application/json
 
 ### Get multas for a junta
 GET {{baseUrl}}/multas/junta/JUNTA_ID
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
 ### Create a new accion
 POST {{baseUrl}}/acciones
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
@@ -183,36 +214,37 @@ Content-Type: application/json
 
 ### Get acciones for a junta
 GET {{baseUrl}}/acciones/junta/6fe6314e-6d8b-413b-b018-562fb4f65e01
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 
 ### Create capital social
 POST {{baseUrl}}/capital/social
-Authorization: Bearer {{dev_token}}
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
   "amount": 10000,
-  "juntaId": "JUNTA_ID"
+  "juntaId": "3f06e453-cf25-4ad0-aece-a9184b1c778b"
 }
 
 ### Get capital social for a junta
-GET {{baseUrl}}/capital/social/junta/JUNTA_ID
-Authorization: Bearer {{dev_token}}
+GET {{baseUrl}}/capital/social/junta/3f06e453-cf25-4ad0-aece-a9184b1c778b
+Authorization: Bearer {{authToken}}
 
 ### Testing Instructions:
 
-1. Get development token:
-   - Execute the "Get development token" request
-   - Copy the token from the response
-   - Replace @dev_token value at the top of this file
+1. Authentication Setup:
+   - First, execute the "Register Admin" request to create an admin user
+   - Then execute either "Login with email" or "Login with phone number"
+   - The auth token will be automatically captured and used for subsequent requests
+   - You can also register regular users with or without email
 
-2. Test user creation:
-   - Execute the "Create a new user" request
-   - Note the user ID from the response
-   - Use this ID in other requests that need USER_ID
+2. Test user creation and roles:
+   - Use the admin token to access protected routes
+   - Test role-based access control
+   - Update user roles as needed
 
 3. Test junta creation:
-   - Execute the "Create a new junta" request
+   - Create a new junta
    - Note the junta ID from the response
    - Use this ID in other requests that need JUNTA_ID
 

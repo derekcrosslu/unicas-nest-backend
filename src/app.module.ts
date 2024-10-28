@@ -1,10 +1,12 @@
-import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
+import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from './config/config.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { JuntasModule } from './juntas/juntas.module';
 import { HealthModule } from './health/health.module';
 import { MembersModule } from './members/members.module';
@@ -13,7 +15,6 @@ import { MultasModule } from './multas/multas.module';
 import { AccionesModule } from './acciones/acciones.module';
 import { AgendaModule } from './agenda/agenda.module';
 import { CapitalModule } from './capital/capital.module';
-import { LoggerMiddleware } from './middleware/logger.middleware';
 
 @Module({
   imports: [
@@ -31,12 +32,12 @@ import { LoggerMiddleware } from './middleware/logger.middleware';
     CapitalModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
 })
-export class AppModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(LoggerMiddleware)
-      .forRoutes({ path: '*', method: RequestMethod.ALL });
-  }
-}
+export class AppModule {}

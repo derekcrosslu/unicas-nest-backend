@@ -1,119 +1,71 @@
 import {
   Controller,
   Get,
-  Put,
-  Post,
-  Body,
   Param,
+  Put,
+  Body,
+  Post,
+  Req,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { UpdateRoleDto } from './dto/update-role.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../types/user-role';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiResponse,
-} from '@nestjs/swagger';
-import { Public } from '../auth/decorators/public.decorator';
+import { UpdateRoleDto } from './dto/update-role.dto';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
+
+interface JwtUser {
+  sub: string;
+  email: string;
+  role: string;
+  phone: string;
+}
 
 interface RequestWithUser extends Request {
-  user: {
-    id: string;
-    role: UserRole;
-  };
+  user: JwtUser;
 }
 
 @ApiTags('users')
 @Controller('users')
-@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
   @Roles('ADMIN')
-  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Get all users (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Return all users.' })
-  @ApiResponse({ status: 403, description: 'Forbidden.' })
-  async findAll(@Request() req: RequestWithUser) {
-    return this.usersService.findAll(req.user.role);
+  findAll() {
+    return this.usersService.findAll();
   }
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ status: 200, description: 'Return the current user.' })
-  getProfile(@Request() req: RequestWithUser) {
-    return this.usersService.findById(req.user.id);
+  async findMe(@Req() req: RequestWithUser) {
+    console.log('User from JWT:', req.user);
+    const user = await this.usersService.findOne(req.user.sub);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    return user;
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get user by ID' })
-  @ApiResponse({ status: 200, description: 'Return the user.' })
-  @ApiResponse({ status: 404, description: 'User not found.' })
   findOne(@Param('id') id: string) {
-    return this.usersService.findById(id);
+    return this.usersService.findOne(id);
   }
 
   @Put(':id/role')
   @Roles('ADMIN')
-  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Update user role (Admin only)' })
-  @ApiResponse({ status: 200, description: 'The role has been updated.' })
-  @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @ApiResponse({ status: 404, description: 'User not found.' })
-  updateRole(
-    @Param('id') id: string,
-    @Body() updateRoleDto: UpdateRoleDto,
-    @Request() req: RequestWithUser,
-  ) {
-    return this.usersService.updateRole(id, updateRoleDto.role, req.user.role);
+  updateRole(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
+    return this.usersService.updateRole(id, updateRoleDto.role);
   }
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new user' })
-  @ApiResponse({ status: 201, description: 'The user has been created.' })
-  createUser(
-    @Body()
-    userData: {
-      document_type: string;
-      document_number: string;
-      first_name: string;
-      last_name: string;
-      birth_date?: string;
-      province?: string;
-      district?: string;
-      address?: string;
-      is_superuser?: boolean;
-    },
-  ) {
-    const email = `${userData.document_number}@example.com`;
-    const username = userData.document_number;
-    const role = userData.is_superuser ? 'ADMIN' : 'USER';
-    const birth_date = userData.birth_date
-      ? new Date(userData.birth_date)
-      : undefined;
-
-    return this.usersService.createUser({
-      ...userData,
-      email,
-      username,
-      role,
-      birth_date,
-      full_name: `${userData.first_name} ${userData.last_name}`,
-    });
-  }
-
-  @Public()
   @Post('webhook')
   @ApiOperation({ summary: 'Clerk webhook endpoint' })
-  @ApiResponse({ status: 200, description: 'Webhook processed.' })
-  async webhookHandler(@Body() body: any) {
-    // Handle Clerk webhook events
+  async webhookHandler() {
     return { status: 'ok' };
   }
 }

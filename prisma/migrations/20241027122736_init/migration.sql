@@ -3,6 +3,7 @@ CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "username" TEXT NOT NULL,
+    "password" TEXT NOT NULL DEFAULT '$2b$10$6jXzYyNVXB5V6863yxGIzOC5D.yqNoE1lO9H.hU4UYVKiV5BOh2S6',
     "role" TEXT NOT NULL DEFAULT 'USER',
     "document_type" TEXT,
     "document_number" TEXT,

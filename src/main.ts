@@ -4,22 +4,26 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { json } from 'express';
-import { ClerkGuard } from './auth/guards/clerk.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  // Enable CORS with more permissive settings for development
+  // Enable CORS with specific configuration
   app.enableCors({
     origin: [
+      'http://localhost:3001', // Frontend URL
       configService.get('FRONTEND_URL'),
-      'http://localhost:3000',
-      'http://localhost:3001',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+    ],
     exposedHeaders: ['Content-Range', 'X-Content-Range'],
   });
 
@@ -29,10 +33,6 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix('api');
 
-  // Global guards
-  const clerkGuard = app.get(ClerkGuard);
-  app.useGlobalGuards(clerkGuard);
-
   // Validation
   app.useGlobalPipes(
     new ValidationPipe({
@@ -40,20 +40,6 @@ async function bootstrap() {
       transform: true,
     }),
   );
-
-  // Request logging middleware
-  app.use((req, res, next) => {
-    console.log(`${req.method} ${req.url}`, {
-      headers: {
-        origin: req.headers.origin,
-        'content-type': req.headers['content-type'],
-        authorization: req.headers.authorization
-          ? 'Bearer [hidden]'
-          : undefined,
-      },
-    });
-    next();
-  });
 
   // Swagger documentation
   const config = new DocumentBuilder()
