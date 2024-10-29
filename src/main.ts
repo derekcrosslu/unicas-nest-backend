@@ -9,11 +9,17 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  // Enable CORS with specific configuration
+
+    // Enable CORS with specific configuration
   app.enableCors({
-    origin: '*',
+    origin: [
+      'https://unicas-frontend-production.up.railway.app',
+      'https://unicas-frontend-production-9cf5.up.railway.app',
+      'http://localhost:3001', // localhost testing
+      configService.get('FRONTEND_URL'),
+    ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    //credentials: true,
+    credentials: true,
     allowedHeaders: [
       'Origin',
       'X-Requested-With',
