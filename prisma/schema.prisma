@@ -8,28 +8,36 @@ datasource db {
 }
 
 model User {
-  id              String        @id @default(uuid())
-  email           String?       @unique
-  username        String        @unique
-  password        String        @default("$2b$10$6jXzYyNVXB5V6863yxGIzOC5D.yqNoE1lO9H.hU4UYVKiV5BOh2S6")
-  phone_number    String
-  role            String        @default("USER")
-  document_type   String?
-  document_number String?
-  full_name       String?
-  first_name      String?
-  last_name       String?
-  birth_date      DateTime?
-  province        String?
-  district        String?
-  address         String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  acciones        Accion[]
-  createdJuntas   Junta[]       @relation("CreatedBy")
-  memberJuntas    JuntaMember[]
-  multas          Multa[]
-  prestamos       Prestamo[]
+  id                  String        @id @default(uuid())
+  email               String?       @unique
+  username            String        @unique
+  password            String        @default("$2b$10$6jXzYyNVXB5V6863yxGIzOC5D.yqNoE1lO9H.hU4UYVKiV5BOh2S6")
+  phone               String
+  role                String        @default("USER")
+  member_role         String?       // socio, presidente, tesorero, secretario
+  document_type       String?
+  document_number     String?
+  full_name          String?
+  productive_activity String?
+  birth_date         DateTime?
+  address            String?
+  join_date          DateTime?
+  gender             String?
+  additional_info    String?
+  status             String        @default("Activo")
+  // Beneficiary information
+  beneficiary_full_name      String?
+  beneficiary_document_type  String?
+  beneficiary_document_number String?
+  beneficiary_phone         String?
+  beneficiary_address       String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  acciones            Accion[]
+  createdJuntas       Junta[]       @relation("CreatedBy")
+  memberJuntas        JuntaMember[]
+  multas              Multa[]
+  prestamos           Prestamo[]
 }
 
 model Junta {

@@ -2,11 +2,13 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { CreateJuntaDto } from './dto/create-junta.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../types/user-role';
+import { AddMemberDto } from './dto/add-member.dto';
 
 @Injectable()
 export class JuntasService {
@@ -181,7 +183,7 @@ export class JuntasService {
 
   async addMember(
     juntaId: string,
-    memberEmail: string,
+    memberData: AddMemberDto,
     userId: string,
     userRole: UserRole,
   ) {
@@ -198,35 +200,92 @@ export class JuntasService {
       );
     }
 
-    const member = await this.usersService.findByEmail(memberEmail);
-    if (!member) {
-      throw new NotFoundException('User not found');
-    }
-
-    // Check if user is already a member
-    const existingMember = await this.prisma.juntaMember.findUnique({
+    // Check if user with document number already exists
+    const existingUser = await this.prisma.user.findFirst({
       where: {
-        juntaId_userId: {
-          juntaId,
-          userId: member.id,
+        document_number: memberData.document_number,
+      },
+      include: {
+        memberJuntas: {
+          include: {
+            junta: true,
+          },
         },
       },
     });
 
-    if (existingMember) {
-      throw new ForbiddenException('User is already a member of this junta');
+    if (existingUser) {
+      // If user exists, check their juntas
+      if (existingUser.memberJuntas.length > 0) {
+        // User is member of some juntas
+        const juntaNames = existingUser.memberJuntas
+          .map((membership) => membership.junta.name)
+          .join(', ');
+        throw new ConflictException({
+          message: `El usuario con el número de documento ${memberData.document_number} ya existe en la base de datos en las juntas: ${juntaNames}`,
+        });
+      } else {
+        // User exists but is not a member of any junta
+        throw new ConflictException({
+          message: `El usuario con el número de documento ${memberData.document_number} ya existe en la base de datos y no forma parte de ninguna junta`,
+        });
+      }
     }
 
-    return this.prisma.juntaMember.create({
-      data: {
-        juntaId,
-        userId: member.id,
-      },
-      include: {
-        user: true,
-        junta: true,
-      },
-    });
+    try {
+      // Create new user if doesn't exist
+      const newUser = await this.prisma.user.create({
+        data: {
+          username: `user_${memberData.document_number}`,
+          email: `${memberData.document_number}@example.com`,
+          password: memberData.password,
+          phone: memberData.phone,
+          role: 'USER',
+          member_role: memberData.role,
+          document_type: memberData.document_type,
+          document_number: memberData.document_number,
+          full_name: memberData.full_name,
+          productive_activity: memberData.productive_activity,
+          birth_date: new Date(memberData.birth_date),
+          address: memberData.address,
+          join_date: new Date(memberData.join_date),
+          gender: memberData.gender,
+          additional_info: memberData.additional_info,
+          status: 'Activo',
+          // Beneficiary information
+          beneficiary_full_name: memberData.beneficiary.full_name,
+          beneficiary_document_type: memberData.beneficiary.document_type,
+          beneficiary_document_number: memberData.beneficiary.document_number,
+          beneficiary_phone: memberData.beneficiary.phone,
+          beneficiary_address: memberData.beneficiary.address,
+          // Create the junta membership
+          memberJuntas: {
+            create: {
+              juntaId: juntaId,
+            },
+          },
+        },
+        include: {
+          memberJuntas: {
+            include: {
+              junta: true,
+            },
+          },
+        },
+      });
+
+      return {
+        ...newUser,
+        junta,
+      };
+    } catch (error) {
+      if (error.code === 'P2002') {
+        throw new ConflictException(
+          `User with ${error.meta.target[0]} already exists`,
+        );
+      }
+      throw error;
+    }
   }
 
   async removeMember(

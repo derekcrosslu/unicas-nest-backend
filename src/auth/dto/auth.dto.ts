@@ -12,7 +12,7 @@ import { Transform } from 'class-transformer';
 export class LoginDto {
   @ApiProperty({ required: false })
   @IsEmail()
-  @ValidateIf((o) => !o.phone_number)
+  @ValidateIf((o) => !o.phone)
   @IsOptional()
   email?: string;
 
@@ -20,7 +20,7 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty()
   @ValidateIf((o) => !o.email)
-  phone_number?: string;
+  phone?: string;
 
   @ApiProperty()
   @IsString()
@@ -47,5 +47,5 @@ export class RegisterDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  phone_number: string;
+  phone: string;
 }

@@ -7,12 +7,14 @@ import {
   Param,
   UseGuards,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JuntasService } from './juntas.service';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { UserRole } from '../types/user-role';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from '../users/users.service';
+import { AddMemberDto } from './dto/add-member.dto';
 
 interface RequestWithUser extends Request {
   user: {
@@ -40,53 +42,25 @@ export class JuntaUsersController {
     return this.juntasService.getMembers(id, req.user.id, req.user.role);
   }
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new user and add to junta' })
-  async createUser(
-    @Body()
-    userData: {
-      is_superuser: boolean;
-      document_type: string;
-      first_name: string;
-      last_name: string;
-      document_number: string;
-      birth_date?: string;
-      province?: string;
-      district?: string;
-      address?: string;
-      juntaId?: string;
-    },
+  @Post(':juntaId/add/:documentNumber')
+  @ApiOperation({ summary: 'Add a member to a junta' })
+  async addMember(
+    @Param('juntaId') juntaId: string,
+    @Param('documentNumber') documentNumber: string,
+    @Body() memberData: AddMemberDto,
     @Request() req: RequestWithUser,
   ) {
-    // Create user
-    const user = await this.usersService.createUser({
-      document_type: userData.document_type,
-      document_number: userData.document_number,
-      first_name: userData.first_name,
-      last_name: userData.last_name,
-      full_name: `${userData.first_name} ${userData.last_name}`,
-      birth_date: userData.birth_date
-        ? new Date(userData.birth_date)
-        : undefined,
-      province: userData.province,
-      district: userData.district,
-      address: userData.address,
-      username: userData.document_number,
-      email: `${userData.document_number}@example.com`,
-      role: userData.is_superuser ? 'ADMIN' : 'USER',
-    });
-
-    // If juntaId is provided, add user to junta
-    if (userData.juntaId) {
-      await this.juntasService.addMember(
-        userData.juntaId,
-        userData.document_number,
-        req.user.id,
-        req.user.role,
-      );
+    // Ensure the document number in the URL matches the one in the body
+    if (documentNumber !== memberData.document_number) {
+      throw new ForbiddenException('Document number mismatch');
     }
 
-    return user;
+    return this.juntasService.addMember(
+      juntaId,
+      memberData,
+      req.user.id,
+      req.user.role,
+    );
   }
 
   @Delete(':id')

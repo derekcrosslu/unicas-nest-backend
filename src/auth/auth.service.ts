@@ -21,18 +21,18 @@ export class AuthService {
   ) {}
 
   async validateUser(loginDto: LoginDto): Promise<UserWithoutPassword | null> {
-    if (!loginDto.email && !loginDto.phone_number) {
+    if (!loginDto.email && !loginDto.phone) {
       throw new UnauthorizedException('Email or phone number is required');
     }
 
     console.log('Login attempt with:', {
       email: loginDto.email,
-      phone_number: loginDto.phone_number,
+      phone: loginDto.phone,
     });
 
     // Strip the phone number to match database format
-    const strippedPhone = loginDto.phone_number
-      ? stripPhoneNumber(loginDto.phone_number)
+    const strippedPhone = loginDto.phone
+      ? stripPhoneNumber(loginDto.phone)
       : null;
 
     console.log('Stripped phone number:', strippedPhone);
@@ -41,7 +41,7 @@ export class AuthService {
     const whereCondition = {
       OR: [
         ...(loginDto.email ? [{ email: loginDto.email }] : []),
-        ...(strippedPhone ? [{ phone_number: strippedPhone }] : []),
+        ...(strippedPhone ? [{ phone: strippedPhone }] : []),
       ],
     };
 
@@ -73,7 +73,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid password');
     }
 
-    const { password: _, ...result } = user;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...result } = user;
     return result;
   }
 
@@ -85,7 +86,7 @@ export class AuthService {
 
     const payload = {
       email: user.email,
-      phone: user.phone_number,
+      phone: user.phone,
       sub: user.id,
       role: user.role,
     };
@@ -96,23 +97,23 @@ export class AuthService {
         id: user.id,
         email: user.email,
         role: user.role,
-        phone_number: `+51${user.phone_number}`, // Add prefix for response
+        phone: `+51${user.phone}`, // Add prefix for response
         username: user.username,
       },
     };
   }
 
   async register(registerDto: RegisterDto, role: string = 'USER') {
-    if (!registerDto.email && !registerDto.phone_number) {
+    if (!registerDto.email && !registerDto.phone) {
       throw new UnauthorizedException('Email or phone number is required');
     }
 
     // Strip phone number for storage
-    const strippedPhone = stripPhoneNumber(registerDto.phone_number);
+    const strippedPhone = stripPhoneNumber(registerDto.phone);
 
     console.log('Register attempt with:', {
       email: registerDto.email,
-      phone_number: registerDto.phone_number,
+      phone: registerDto.phone,
       stripped_phone: strippedPhone,
       username: registerDto.username,
     });
@@ -122,7 +123,7 @@ export class AuthService {
         OR: [
           ...(registerDto.email ? [{ email: registerDto.email }] : []),
           { username: registerDto.username },
-          { phone_number: strippedPhone },
+          { phone: strippedPhone },
         ],
       },
     });
@@ -139,8 +140,9 @@ export class AuthService {
         email: registerDto.email,
         username: registerDto.username,
         password: hashedPassword,
-        phone_number: strippedPhone,
+        phone: strippedPhone,
         role,
+        status: 'Activo',
       },
     });
 
@@ -149,10 +151,11 @@ export class AuthService {
       password: '[HIDDEN]',
     });
 
-    const { password: _, ...result } = newUser;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...result } = newUser;
     return this.login({
       ...(result.email ? { email: result.email } : {}),
-      ...(result.phone_number ? { phone_number: result.phone_number } : {}),
+      ...(result.phone ? { phone: result.phone } : {}),
       password: registerDto.password,
     });
   }

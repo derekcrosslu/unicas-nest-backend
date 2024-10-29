@@ -6,6 +6,8 @@ import {
   Param,
   UseGuards,
   Request,
+  Body,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JuntasService } from '../juntas/juntas.service';
 import { UsersService } from '../users/users.service';
@@ -15,6 +17,7 @@ import { AccionesService } from '../acciones/acciones.service';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { UserRole } from '../types/user-role';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { AddMemberDto } from '../juntas/dto/add-member.dto';
 
 interface RequestWithUser extends Request {
   user: {
@@ -125,15 +128,27 @@ export class MembersController {
   async addMember(
     @Param('juntaId') juntaId: string,
     @Param('documentNumber') documentNumber: string,
+    @Body() memberData: AddMemberDto,
     @Request() req: RequestWithUser,
   ) {
-    const member = await this.usersService.findByUsername(documentNumber);
-    if (!member) {
-      return [];
+    console.log('Adding member with document numbers:', {
+      urlDocNumber: documentNumber,
+      bodyDocNumber: memberData.document_number,
+      areEqual: documentNumber === memberData.document_number,
+      urlLength: documentNumber.length,
+      bodyLength: memberData.document_number.length,
+    });
+
+    // Ensure the document number in the URL matches the one in the body
+    if (documentNumber !== memberData.document_number) {
+      throw new ForbiddenException(
+        `Document number mismatch. URL: ${documentNumber}, Body: ${memberData.document_number}`,
+      );
     }
+
     return this.juntasService.addMember(
       juntaId,
-      member.email,
+      memberData,
       req.user.id,
       req.user.role,
     );

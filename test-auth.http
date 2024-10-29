@@ -2,6 +2,36 @@
 @baseUrlProd  = https://unicas-nest-backend-production.up.railway.app/api
 @authToken = {{login.response.body.access_token}}
 
+### Add new member to junta (creates user if doesn't exist)
+### Important: The document_number in the URL must match exactly with the one in the request body
+POST {{baseUrl}}/members/94a0c738-6e2d-4fa8-a2e3-a7efeece6527/add/07877781
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "full_name": "Carlos Rodriguez",
+  "document_type": "DNI",
+  "document_number": "07877781",
+  "role": "socio",
+  "productive_activity": "Agricultor",
+  "birth_date": "1985-05-15",
+  "phone": "987123456",
+  "address": "Jr. Lima 456",
+  "join_date": "2024-01-01",
+  "gender": "Masculino",
+  "password": "123456",
+  "additional_info": "Nuevo miembro de la junta",
+  "beneficiary": {
+    "full_name": "Ana Rodriguez",
+    "document_type": "DNI",
+    "document_number": "12345679",
+    "phone": "987123457",
+    "address": "Jr. Lima 456"
+  }
+}
+
+### For reference, here's the full test-auth.http content that you can use later:
+
 ### Important Notes:
 # 1. Backend runs on http://localhost:3000
 # 2. Frontend runs on http://localhost:3001
@@ -22,7 +52,7 @@ Content-Type: application/json
     "email": "admin@admin.com",
     "password": "123123",
     "username": "admin1",
-    "phone_number": "912345678"
+    "phone": "912345678"
 }
 
 ### Register new regular user with email (optional)
@@ -34,7 +64,7 @@ Content-Type: application/json
     "email": "test@example.com",
     "password": "password123",
     "username": "testuser",
-    "phone_number": "+1234567890"
+    "phone": "+1234567890"
 }
 
 ### Register new user with phone only
@@ -44,7 +74,7 @@ Content-Type: application/json
 {
     "username": "001",
     "password": "password123",
-    "phone_number": "987654322"
+    "phone": "987654322"
 }
 
 ### Login with email
@@ -63,8 +93,8 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "phone_number": "999999999",
-    "password": "admin123"
+    "phone": "+51912345678",
+    "password": "123123"
 }
 
 ### Get user profile
@@ -119,11 +149,7 @@ GET {{baseUrl}}/members/dni/12345678/acciones
 Authorization: Bearer {{authToken}}
 
 ### Get all members of a junta
-GET {{baseUrl}}/members/junta/6fe6314e-6d8b-413b-b018-562fb4f65e01
-Authorization: Bearer {{authToken}}
-
-### Add member to junta
-POST {{baseUrl}}/members/6fe6314e-6d8b-413b-b018-562fb4f65e01/add/07877781
+GET {{baseUrl}}/members/junta/94a0c738-6e2d-4fa8-a2e3-a7efeece6527
 Authorization: Bearer {{authToken}}
 
 ### Remove member from junta
@@ -207,14 +233,24 @@ Content-Type: application/json
 
 {
   "type": "COMPRA",
-  "amount": 1000,
+  "amount": 10,
   "description": "Compra de acciones",
-  "juntaId": "6fe6314e-6d8b-413b-b018-562fb4f65e01",
-  "memberId": "23ea3265-1ab2-4d5c-a81c-35c33f9cee38"
+  "juntaId": "94a0c738-6e2d-4fa8-a2e3-a7efeece6527",
+  "memberId": "d44b81ce-7d2f-406b-9479-ed1ad8b09a84"
 }
 
+### Delete an accion
+### Note: Only ADMIN or FACILITATOR who created the junta can delete acciones
+# DELETE {{baseUrl}}/acciones/ACCION_ID
+DELETE {{baseUrl}}/acciones/1c940c18-aa9f-427b-88ab-bf047aa332c0 
+Authorization: Bearer {{authToken}}
+
+### Get all members of a junta
+GET {{baseUrl}}/members/junta/94a0c738-6e2d-4fa8-a2e3-a7efeece6527
+Authorization: Bearer {{authToken}}
+
 ### Get acciones for a junta
-GET {{baseUrl}}/acciones/junta/6fe6314e-6d8b-413b-b018-562fb4f65e01
+GET {{baseUrl}}/acciones/junta/94a0c738-6e2d-4fa8-a2e3-a7efeece6527
 Authorization: Bearer {{authToken}}
 
 ### Create capital social
@@ -250,7 +286,8 @@ Authorization: Bearer {{authToken}}
    - Use this ID in other requests that need JUNTA_ID
 
 4. Test member operations:
-   - Add members to the junta
+   - For new members: Use the "Add new member to junta" endpoint
+   - Make sure the document_number in the URL matches exactly with the one in the request body
    - Test member-specific endpoints
    - Test financial operations
 
@@ -258,3 +295,8 @@ Note: Replace placeholders:
 - USER_ID: Use actual user ID
 - JUNTA_ID: Use actual junta ID
 - MEMBER_ID: Use actual member ID
+
+
+### Get all juntas
+GET {{baseUrl}}/juntas
+Authorization: Bearer {{authToken}}

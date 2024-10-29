@@ -5,17 +5,25 @@ import { UserRole } from '../types/user-role';
 interface UserCreateData {
   email: string;
   username: string;
-  phone_number?: string;
+  phone?: string;
   role?: UserRole;
+  member_role?: string;
   document_type?: string;
   document_number?: string;
   full_name?: string;
-  first_name?: string;
-  last_name?: string;
+  productive_activity?: string;
   birth_date?: Date;
-  province?: string;
-  district?: string;
   address?: string;
+  join_date?: Date;
+  gender?: string;
+  additional_info?: string;
+  status?: string;
+  // Beneficiary information
+  beneficiary_full_name?: string;
+  beneficiary_document_type?: string;
+  beneficiary_document_number?: string;
+  beneficiary_phone?: string;
+  beneficiary_address?: string;
 }
 
 @Injectable()
@@ -31,16 +39,23 @@ export class UsersService {
         email: true,
         username: true,
         role: true,
-        phone_number: true,
+        phone: true,
+        member_role: true,
         document_type: true,
         document_number: true,
         full_name: true,
-        first_name: true,
-        last_name: true,
+        productive_activity: true,
         birth_date: true,
-        province: true,
-        district: true,
         address: true,
+        join_date: true,
+        gender: true,
+        additional_info: true,
+        status: true,
+        beneficiary_full_name: true,
+        beneficiary_document_type: true,
+        beneficiary_document_number: true,
+        beneficiary_phone: true,
+        beneficiary_address: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -59,16 +74,23 @@ export class UsersService {
         email: true,
         username: true,
         role: true,
-        phone_number: true,
+        phone: true,
+        member_role: true,
         document_type: true,
         document_number: true,
         full_name: true,
-        first_name: true,
-        last_name: true,
+        productive_activity: true,
         birth_date: true,
-        province: true,
-        district: true,
         address: true,
+        join_date: true,
+        gender: true,
+        additional_info: true,
+        status: true,
+        beneficiary_full_name: true,
+        beneficiary_document_type: true,
+        beneficiary_document_number: true,
+        beneficiary_phone: true,
+        beneficiary_address: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -109,9 +131,10 @@ export class UsersService {
     return this.prisma.user.create({
       data: {
         ...userData,
-        phone_number:
-          userData.phone_number ||
+        phone:
+          userData.phone ||
           `+1${Math.floor(Math.random() * 9000000000) + 1000000000}`,
+        status: userData.status || 'Activo',
       },
     });
   }
@@ -133,7 +156,7 @@ export class UsersService {
         email: true,
         username: true,
         role: true,
-        phone_number: true,
+        phone: true,
       },
     });
   }

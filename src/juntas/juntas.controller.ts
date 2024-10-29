@@ -19,6 +19,7 @@ import {
   ApiBearerAuth,
   ApiResponse,
 } from '@nestjs/swagger';
+import { AddMemberDto } from './dto/add-member.dto';
 
 interface RequestWithUser extends Request {
   user: {
@@ -92,12 +93,12 @@ export class JuntasController {
   @ApiResponse({ status: 404, description: 'Junta or user not found.' })
   addMember(
     @Param('id') id: string,
-    @Body('email') memberEmail: string,
+    @Body() memberData: AddMemberDto,
     @Request() req: RequestWithUser,
   ) {
     return this.juntasService.addMember(
       id,
-      memberEmail,
+      memberData,
       req.user.id,
       req.user.role,
     );
