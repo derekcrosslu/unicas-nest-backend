@@ -2,7 +2,7 @@
 node_modules/
 dist/
 pythoncode
-
+endpoints
 # Environment
 .env
 .env.*
