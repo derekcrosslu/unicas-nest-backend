@@ -1,0 +1,95 @@
+@baseUrl = {{baseUrl}}
+
+### Login first to get token
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@admin.com",
+    "password": "123123"
+}
+
+@authToken = {{login.response.body.access_token}}
+
+### Capital Social Management
+
+### Create capital social
+# @name createCapitalSocial
+POST {{baseUrl}}/capital/social
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "amount": 10000,
+  "juntaId": "{{juntaId}}"
+}
+
+@capitalSocialId = {{createCapitalSocial.response.body.id}}
+
+### Get capital social for a junta
+GET {{baseUrl}}/capital/social/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+### Update capital social
+PUT {{baseUrl}}/capital/social/{{capitalSocialId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "amount": 12000
+}
+
+### Ingresos Management
+
+### Create a new ingreso
+# @name createIngreso
+POST {{baseUrl}}/capital/ingreso
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "amount": 1000,
+  "description": "Aporte mensual",
+  "capitalSocialId": "{{capitalSocialId}}"
+}
+
+@ingresoId = {{createIngreso.response.body.id}}
+
+### Get all ingresos for a capital social
+GET {{baseUrl}}/capital/ingreso/{{capitalSocialId}}
+Authorization: Bearer {{authToken}}
+
+### Delete an ingreso
+DELETE {{baseUrl}}/capital/ingreso/{{ingresoId}}
+Authorization: Bearer {{authToken}}
+
+### Gastos Management
+
+### Create a new gasto
+# @name createGasto
+POST {{baseUrl}}/capital/gasto
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "amount": 500,
+  "description": "Gastos administrativos",
+  "capitalSocialId": "{{capitalSocialId}}"
+}
+
+@gastoId = {{createGasto.response.body.id}}
+
+### Get all gastos for a capital social
+GET {{baseUrl}}/capital/gasto/{{capitalSocialId}}
+Authorization: Bearer {{authToken}}
+
+### Delete a gasto
+DELETE {{baseUrl}}/capital/gasto/{{gastoId}}
+Authorization: Bearer {{authToken}}
+
+### Variables for testing
+@juntaId = your-junta-id-here
+@capitalSocialId = {{capitalSocialId}} # Uses the ID from createCapitalSocial response, or replace with your capital social ID
+@ingresoId = {{ingresoId}} # Uses the ID from createIngreso response, or replace with your ingreso ID
+@gastoId = {{gastoId}} # Uses the ID from createGasto response, or replace with your gasto ID

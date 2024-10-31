@@ -1,0 +1,57 @@
+@baseUrl = {{baseUrl}}
+
+### Login first to get token
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@admin.com",
+    "password": "123123"
+}
+
+@authToken = {{login.response.body.access_token}}
+
+### Agenda Management Endpoints
+
+### Create a new agenda item
+# @name createAgendaItem
+POST {{baseUrl}}/agenda
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "title": "Reunión Mensual",
+  "description": "Reunión para discutir avances del mes",
+  "date": "2024-02-01T15:00:00Z",
+  "juntaId": "{{juntaId}}"
+}
+
+@newAgendaItemId = {{createAgendaItem.response.body.id}}
+
+### Get all agenda items for a junta
+GET {{baseUrl}}/agenda/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+### Get specific agenda item
+GET {{baseUrl}}/agenda/{{agendaItemId}}
+Authorization: Bearer {{authToken}}
+
+### Update an agenda item
+PUT {{baseUrl}}/agenda/{{agendaItemId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "title": "Reunión Mensual Actualizada",
+  "description": "Reunión para discutir avances y planificación",
+  "date": "2024-02-01T16:00:00Z"
+}
+
+### Delete an agenda item
+DELETE {{baseUrl}}/agenda/{{agendaItemId}}
+Authorization: Bearer {{authToken}}
+
+### Variables for testing
+@juntaId = your-junta-id-here
+@agendaItemId = {{newAgendaItemId}} # Uses the ID from createAgendaItem response, or replace with your agenda item ID

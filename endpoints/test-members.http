@@ -1,0 +1,99 @@
+@baseUrl = http://localhost:3000/api
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@admin.com",
+    "password": "123123"
+}
+
+### Store auth token from login response
+@authToken = {{login.response.body.access_token}}
+
+### Member Management Endpoints
+
+### Add new member to junta
+# @name addMember
+POST {{baseUrl}}/api/members/{{juntaId}}/add/{{documentNumber}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "full_name": "Carlos Rodriguez",
+  "document_type": "DNI",
+  "document_number": "{{documentNumber}}",
+  "role": "socio",
+  "productive_activity": "Agricultor",
+  "birth_date": "1985-05-15",
+  "phone": "987123456",
+  "address": "Jr. Lima 456",
+  "join_date": "2024-01-01",
+  "gender": "Masculino",
+  "password": "123456",
+  "additional_info": "Nuevo miembro de la junta",
+  "beneficiary": {
+    "full_name": "Ana Rodriguez",
+    "document_type": "DNI",
+    "document_number": "12345679",
+    "phone": "987123457",
+    "address": "Jr. Lima 456"
+  }
+}
+
+@newMemberId = {{addMember.response.body.id}}
+
+### Get member by DNI
+GET {{baseUrl}}/api/members/dni/{{documentNumber}}
+Authorization: Bearer {{authToken}}
+
+### Get member prestamos
+GET {{baseUrl}}/api/members/dni/{{documentNumber}}/prestamos
+Authorization: Bearer {{authToken}}
+
+### Get member pagos
+GET {{baseUrl}}/api/members/dni/{{documentNumber}}/pagos
+Authorization: Bearer {{authToken}}
+
+### Get member multas
+GET {{baseUrl}}/api/members/dni/{{documentNumber}}/multas
+Authorization: Bearer {{authToken}}
+
+### Get member acciones
+GET {{baseUrl}}/api/members/dni/{{documentNumber}}/acciones
+Authorization: Bearer {{authToken}}
+
+### Update member information
+PUT {{baseUrl}}/api/members/{{juntaId}}/{{memberId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "full_name": "Carlos Rodriguez Updated",
+    "phone": "987123456",
+    "address": "Jr. Lima 789",
+    "productive_activity": "Agricultor y Ganadero",
+    "gender": "Masculino",
+    "additional_info": "Información actualizada",
+    "beneficiary": {
+        "full_name": "Ana Rodriguez",
+        "document_type": "DNI",
+        "document_number": "12345679",
+        "phone": "987123457",
+        "address": "Jr. Lima 789"
+    }
+}
+
+### Remove member from junta
+DELETE {{baseUrl}}/api/members/{{juntaId}}/{{memberId}}
+Authorization: Bearer {{authToken}}
+
+### Variables for testing
+@juntaId = 301eb0c6-5610-4af4-ad9d-e2c7459e568b
+@memberId = {{newMemberId}} # Uses the ID from addMember response, or replace with your member ID
+@documentNumber = 12345678

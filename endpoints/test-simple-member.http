@@ -1,0 +1,105 @@
+@baseUrl = http://localhost:3000/api
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Login with phone number
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "phone": "987654321",
+    "password": "123456"
+}
+
+### Store auth token from login response
+# @authToken = {{login.response.body.access_token}}
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluMkBhZG1pbi5jb20iLCJwaG9uZSI6Ijk4NzY1NDMyMSIsInN1YiI6Ijg3NzE2Y2E2LTBkYWYtNDBkYi04ZjA3LWNhMzQxNzhkZTI5OSIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTczMDM5NTcxMywiZXhwIjoxNzMwNDgyMTEzfQ.aIJlfnfZNWTrzGsrvLhkq1Rg86flCfSdGEbEYb-zQQA
+
+### Get user profile
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{authToken}}
+
+### Store user id from response
+# @userId = {{login.response.body.user.id}}
+@userId = 87716ca6-0daf-40db-8f07-ca34178de299
+# @userPhone = {{login.response.body.user.phone}}
+@userPhone = 912345678
+
+### Get user by ID
+GET {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{authToken}}
+
+### Store users response variables
+# @documentNumber = {{users.response.body.document_number}}
+@documentNumber  = 07877766
+
+@juntaMemberId = 7eec5e01-f4cc-44f1-92aa-2882d735f1fa
+
+### Get all users (Admin only)
+GET {{baseUrl}}/users
+Authorization: Bearer {{authToken}}
+
+
+### Get all juntas
+GET {{baseUrl}}/juntas
+Authorization: Bearer {{authToken}}
+
+
+
+
+# @juntaId = {{juntas.response.body.0.id}}
+@juntaId = 3f06e453-cf25-4ad0-aece-a9184b1c778b
+
+### Get specific junta
+GET {{baseUrl}}/juntas/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+
+### Get all members of a junta
+GET {{baseUrl}}/members/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+### Get acciones for a junta
+GET {{baseUrl}}/acciones/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+### Get prestamos for a junta
+GET {{baseUrl}}/prestamos/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+### Create a new prestamo
+# @name createPrestamo
+POST {{baseUrl}}/prestamos
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "amount": 1000,
+  "description": "Préstamo inicial",
+  "juntaId": "{{juntaId}}",
+  "memberId": "{{juntaMemberId}}"
+}
+
+#### Get all prestamos for a junta
+GET http://localhost:3000/api/juntas
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluMkBhZG1pbi5jb20iLCJwaG9uZSI6Ijk4NzY1NDMyMSIsInN1YiI6Ijg3NzE2Y2E2LTBkYWYtNDBkYi04ZjA3LWNhMzQxNzhkZTI5OSIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTczMDM5NTcxMywiZXhwIjoxNzMwNDgyMTEzfQ.aIJlfnfZNWTrzGsrvLhkq1Rg86flCfSdGEbEYb-zQQA
+
+
+### Get Juntas
+GET http://localhost:3000/api/juntas
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluMkBhZG1pbi5jb20iLCJwaG9uZSI6Ijk4NzY1NDMyMSIsInN1YiI6Ijg3NzE2Y2E2LTBkYWYtNDBkYi04ZjA3LWNhMzQxNzhkZTI5OSIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTczMDM5NTcxMywiZXhwIjoxNzMwNDgyMTEzfQ.aIJlfnfZNWTrzGsrvLhkq1Rg86flCfSdGEbEYb-zQQA
+
+
+curl -v -X GET http://localhost:3000/api/juntas -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluMkBhZG1pbi5jb20iLCJwaG9uZSI6Ijk4NzY1NDMyMSIsInN1YiI6Ijg3NzE2Y2E2LTBkYWYtNDBkYi04ZjA3LWNhMzQxNzhkZTI5OSIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTczMDM5NTcxMywiZXhwIjoxNzMwNDgyMTEzfQ.aIJlfnfZNWTrzGsrvLhkq1Rg86flCfSdGEbEYb-zQQA"
+
+
+
+### Get Juntas
+GET http://localhost:3000/api/juntas
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluMkBhZG1pbi5jb20iLCJwaG9uZSI6Ijk4NzY1NDMyMSIsInN1YiI6Ijg3NzE2Y2E2LTBkYWYtNDBkYi04ZjA3LWNhMzQxNzhkZTI5OSIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTczMDM5NTcxMywiZXhwIjoxNzMwNDgyMTEzfQ.aIJlfnfZNWTrzGsrvLhkq1Rg86flCfSdGEbEYb-zQQA
+
+
+### Get Juntas
+GET {{baseUrl}}/juntas
+Authorization: Bearer {{authToken}}

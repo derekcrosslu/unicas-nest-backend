@@ -1,0 +1,71 @@
+@baseUrl = {{baseUrl}}
+
+# @name selectEnvironment
+# @development
+# @production
+
+### 1. Authentication Setup (Required for all other endpoints)
+
+### Register new admin user (Run this first time only)
+# @name registerAdmin
+POST {{baseUrl}}/api/auth/register/admin
+Content-Type: application/json
+
+{
+    "email": "admin@admin.com",
+    "password": "123123",
+    "username": "admin1",
+    "phone": "912345678"
+}
+
+### Login as admin (Run this to get token)
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@admin.com",
+    "password": "123123"
+}
+
+@authToken = {{login.response.body.access_token}}
+
+### Other Authentication Endpoints
+
+### Register new regular user with email
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+    "email": "test@example.com",
+    "password": "password123",
+    "username": "testuser",
+    "phone": "+1234567890"
+}
+
+### Register new user with phone only
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+    "username": "001",
+    "password": "password123",
+    "phone": "987654322"
+}
+
+### Login with phone number
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+    "phone": "+51912345678",
+    "password": "123123"
+}
+
+### Get user profile
+GET {{baseUrl}}/api/auth/profile
+Authorization: Bearer {{authToken}}
+
+### Health check
+GET {{baseUrl}}/api/health
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQGFkbWluLmNvbSIsInBob25lIjoiOTEyMzQ1Njc4Iiwic3ViIjoiMzAxZWIwYzYtNTYxMC00YWY0LWFkOWQtZTJjNzQ1OWU1NjhiIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzMwMzE3MTY1LCJleHAiOjE3MzA0MDM1NjV9.Wk33nGg7KMjNgshHsDO0Oa_GSeeBQkIaa0b3g1h4B8E

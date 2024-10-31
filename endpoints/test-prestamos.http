@@ -1,0 +1,63 @@
+@baseUrl = {{baseUrl}}
+
+### Login first to get token
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@admin.com",
+    "password": "123123"
+}
+
+@authToken = {{login.response.body.access_token}}
+
+### Create a new prestamo
+# @name createPrestamo
+POST {{baseUrl}}/api/prestamos
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "amount": 1000,
+  "monthly_interest": 5,
+  "number_of_installments": 12,
+  "loan_type": "personal",
+  "description": "Préstamo personal inicial",
+  "juntaId": "2c2fd05b-121d-4a16-aa17-31ccd8f735e2",
+  "memberId": "6bbada35-75e0-4efc-9a34-d5e0693327bf"
+}
+
+@newPrestamoId = {{createPrestamo.response.body.id}}
+
+### Get prestamos for a junta
+GET {{baseUrl}}/api/prestamos/junta/2c2fd05b-121d-4a16-aa17-31ccd8f735e2
+Authorization: Bearer {{authToken}}
+
+### Get specific prestamo
+GET {{baseUrl}}/api/prestamos/{{prestamoId}}
+Authorization: Bearer {{authToken}}
+
+### Create a new pago
+# @name createPago
+POST {{baseUrl}}/api/prestamos/{{prestamoId}}/pagos
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "amount": 100,
+  "description": "Pago inicial"
+}
+
+### Get pagos for a junta
+GET {{baseUrl}}/api/prestamos/junta/2c2fd05b-121d-4a16-aa17-31ccd8f735e2/pagos
+Authorization: Bearer {{authToken}}
+
+### Get pagos for a prestamo
+GET {{baseUrl}}/api/prestamos/{{prestamoId}}/pagos
+Authorization: Bearer {{authToken}}
+
+### Variables for testing
+@juntaId = 2c2fd05b-121d-4a16-aa17-31ccd8f735e2
+@memberId = 6bbada35-75e0-4efc-9a34-d5e0693327bf
+@prestamoId = {{newPrestamoId}} # Uses the ID from createPrestamo response, or replace with your prestamo ID

@@ -1,0 +1,59 @@
+@baseUrl = {{baseUrl}}
+
+### Login first to get token
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@admin.com",
+    "password": "123123"
+}
+
+@authToken = {{login.response.body.access_token}}
+
+### Acciones Management Endpoints
+
+### Create a new accion
+# @name createAccion
+POST {{baseUrl}}/acciones
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "type": "COMPRA",
+  "amount": 10,
+  "description": "Compra de acciones",
+  "juntaId": "{{juntaId}}",
+  "memberId": "{{memberId}}"
+}
+
+@newAccionId = {{createAccion.response.body.id}}
+
+### Get acciones for a junta
+GET {{baseUrl}}/acciones/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+### Get specific accion
+GET {{baseUrl}}/acciones/{{accionId}}
+Authorization: Bearer {{authToken}}
+
+### Update an accion
+PUT {{baseUrl}}/acciones/{{accionId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "type": "VENTA",
+  "amount": 15,
+  "description": "Venta de acciones"
+}
+
+### Delete an accion
+DELETE {{baseUrl}}/acciones/{{accionId}}
+Authorization: Bearer {{authToken}}
+
+### Variables for testing
+@juntaId = your-junta-id-here
+@memberId = your-member-id-here
+@accionId = {{newAccionId}} # Uses the ID from createAccion response, or replace with your accion ID
