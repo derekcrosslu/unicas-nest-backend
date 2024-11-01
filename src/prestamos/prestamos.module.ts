@@ -1,12 +1,25 @@
 import { Module } from '@nestjs/common';
 import { PrestamosController } from './prestamos.controller';
 import { PrestamosService } from './prestamos.service';
+import { PrestamosSyncService } from './prestamos-sync.service';
+import { PrestamosTestService } from './prestamos-test.service';
+import { PrestamosMonitorService } from './prestamos-monitor.service';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [PrismaModule],
   controllers: [PrestamosController],
-  providers: [PrestamosService],
-  exports: [PrestamosService], // Export PrestamosService for use in other modules
+  providers: [
+    PrestamosService,
+    PrestamosSyncService,
+    PrestamosTestService,
+    PrestamosMonitorService,
+  ],
+  exports: [
+    PrestamosService,
+    PrestamosSyncService,
+    PrestamosTestService,
+    PrestamosMonitorService,
+  ],
 })
 export class PrestamosModule {}

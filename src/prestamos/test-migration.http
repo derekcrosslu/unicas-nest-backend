@@ -1,0 +1,32 @@
+### Variables
+@baseUrl = http://localhost:3000
+@authToken = your-admin-jwt-token-here
+# Example prestamo IDs - replace with actual IDs when testing
+@prestamoId = example-old-prestamo-id
+@newPrestamoId = example-new-prestamo-id
+
+### Verify current data consistency
+GET {{baseUrl}}/prestamos/migration/verify
+Authorization: Bearer {{authToken}}
+
+### Test single prestamo migration
+POST {{baseUrl}}/prestamos/migration/single/{{prestamoId}}
+Authorization: Bearer {{authToken}}
+
+### Start full migration
+POST {{baseUrl}}/prestamos/migration/start
+Authorization: Bearer {{authToken}}
+
+### Verify migration results
+GET {{baseUrl}}/prestamos/migration/verify
+Authorization: Bearer {{authToken}}
+
+### Rollback specific prestamo if needed
+POST {{baseUrl}}/prestamos/migration/rollback/{{newPrestamoId}}
+Authorization: Bearer {{authToken}}
+
+### Notes:
+# 1. Replace 'your-admin-jwt-token-here' with a valid admin JWT token
+# 2. Replace example IDs with actual prestamo IDs from your database
+# 3. Run endpoints in sequence to safely test migration process
+# 4. Check response data after each request to verify success

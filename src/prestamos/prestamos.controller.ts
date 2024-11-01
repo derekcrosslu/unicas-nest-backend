@@ -8,11 +8,19 @@ import {
   UseGuards,
   Request,
   Put,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrestamosService } from './prestamos.service';
+import { PrestamosSyncService } from './prestamos-sync.service';
+import { PrestamosTestService } from './prestamos-test.service';
+import { PrestamosMonitorService } from './prestamos-monitor.service';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { UserRole } from '../types/user-role';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  MigrationStats,
+  DataConsistencyStats,
+} from './types/prestamos-monitor.types';
 
 interface RequestWithUser extends Request {
   user: {
@@ -26,8 +34,14 @@ interface RequestWithUser extends Request {
 @ApiBearerAuth()
 @UseGuards(RolesGuard)
 export class PrestamosController {
-  constructor(private readonly prestamosService: PrestamosService) {}
+  constructor(
+    private readonly prestamosService: PrestamosService,
+    private readonly prestamosSyncService: PrestamosSyncService,
+    private readonly prestamosTestService: PrestamosTestService,
+    private readonly prestamosMonitorService: PrestamosMonitorService,
+  ) {}
 
+  // Existing endpoints
   @Get('junta/:juntaId')
   @ApiOperation({ summary: 'Get all prestamos for a junta' })
   async findByJunta(
@@ -129,5 +143,101 @@ export class PrestamosController {
       req.user.id,
       req.user.role,
     );
+  }
+
+  // Migration management endpoints
+  @Post('migration/start')
+  @ApiOperation({ summary: 'Start migration of all prestamos to new schema' })
+  async startMigration(@Request() req: RequestWithUser) {
+    if (req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can perform migrations');
+    }
+    return this.prestamosSyncService.migrateAllPrestamos();
+  }
+
+  @Post('migration/single/:id')
+  @ApiOperation({ summary: 'Migrate a single prestamo to new schema' })
+  async migrateSingle(
+    @Param('id') id: string,
+    @Request() req: RequestWithUser,
+  ) {
+    if (req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can perform migrations');
+    }
+    return this.prestamosSyncService.migratePrestamo(id);
+  }
+
+  @Get('migration/verify')
+  @ApiOperation({
+    summary: 'Verify data consistency between old and new schemas',
+  })
+  async verifyMigration(@Request() req: RequestWithUser) {
+    if (req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can verify migrations');
+    }
+    return this.prestamosSyncService.verifyDataConsistency();
+  }
+
+  @Post('migration/rollback/:id')
+  @ApiOperation({ summary: 'Rollback a migrated prestamo' })
+  async rollbackMigration(
+    @Param('id') id: string,
+    @Request() req: RequestWithUser,
+  ) {
+    if (req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can rollback migrations');
+    }
+    return this.prestamosSyncService.rollbackPrestamo(id);
+  }
+
+  // Monitoring endpoints
+  @Get('migration/progress')
+  @ApiOperation({ summary: 'Get current migration progress' })
+  async getMigrationProgress(
+    @Request() req: RequestWithUser,
+  ): Promise<MigrationStats> {
+    if (req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can view migration progress');
+    }
+    return this.prestamosMonitorService.getMigrationProgress();
+  }
+
+  @Get('migration/consistency')
+  @ApiOperation({ summary: 'Check data consistency status' })
+  async getConsistencyStatus(
+    @Request() req: RequestWithUser,
+  ): Promise<DataConsistencyStats> {
+    if (req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can check consistency status');
+    }
+    return this.prestamosMonitorService.checkDataConsistency();
+  }
+
+  @Get('migration/metrics')
+  @ApiOperation({ summary: 'Get migration performance metrics' })
+  async getPerformanceMetrics(@Request() req: RequestWithUser) {
+    if (req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can view performance metrics');
+    }
+    return this.prestamosMonitorService.getPerformanceMetrics();
+  }
+
+  // Test data management endpoints
+  @Post('test/create-data')
+  @ApiOperation({ summary: 'Create test data for migration testing' })
+  async createTestData(@Request() req: RequestWithUser) {
+    if (req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can create test data');
+    }
+    return this.prestamosTestService.createTestData();
+  }
+
+  @Post('test/cleanup')
+  @ApiOperation({ summary: 'Clean up test data' })
+  async cleanupTestData(@Request() req: RequestWithUser) {
+    if (req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can clean up test data');
+    }
+    return this.prestamosTestService.cleanupTestData();
   }
 }
