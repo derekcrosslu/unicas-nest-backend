@@ -66,6 +66,7 @@ export class AccionesService {
     memberId: string,
     type: string,
     amount: number,
+    shareValue: number,
     description: string | undefined,
     userId: string,
     userRole: UserRole,
@@ -104,6 +105,7 @@ export class AccionesService {
         data: {
           type,
           amount,
+          shareValue,
           description,
           juntaId,
           memberId,
@@ -127,13 +129,15 @@ export class AccionesService {
         },
       });
 
+      const incrementValue = amount * shareValue;
+
       // Update junta's capital
       await prisma.junta.update({
         where: { id: juntaId },
         data: {
-          current_capital: { increment: amount },
-          base_capital: { increment: amount },
-          available_capital: { increment: amount },
+          current_capital: { increment: incrementValue },
+          base_capital: { increment: incrementValue },
+          available_capital: { increment: incrementValue },
         },
       });
 

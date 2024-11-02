@@ -1,4 +1,5 @@
 import { PrestamoNew } from '@prisma/client';
+import { GuaranteeType, PaymentType, LoanType } from './prestamo.types';
 
 export interface PrestamoMappingInput {
   loan_number: number;
@@ -7,9 +8,9 @@ export interface PrestamoMappingInput {
   amount: number;
   monthly_interest: number;
   number_of_installments: number;
-  payment_type: string;
+  payment_type: PaymentType;
   reason: string;
-  guarantee_type: string;
+  guarantee_type: GuaranteeType;
   guarantee_detail: string;
   form_purchased: boolean;
   juntaId: string;
@@ -32,7 +33,7 @@ export interface PrestamoMappingOutput {
   guarantee_type: string;
   guarantee_detail: string;
   form_purchased: boolean;
-  loan_type: string;
+  loan_type: LoanType;
   junta: {
     connect: {
       id: string;
@@ -66,7 +67,7 @@ export function mapPrestamoToNewSchema(
     guarantee_type: input.guarantee_type,
     guarantee_detail: input.guarantee_detail,
     form_purchased: input.form_purchased,
-    loan_type: 'personal', // Default to personal type for migrated loans
+    loan_type: 'CUOTA_REBATIR', // Default to personal type for migrated loans
     junta: {
       connect: {
         id: input.juntaId,

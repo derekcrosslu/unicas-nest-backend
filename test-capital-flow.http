@@ -162,8 +162,6 @@ Authorization: Bearer {{authToken}}
 
 ### Store capital movement ID for delete
 @capitalMovementIdtoDelete1 = 88fc225b-7150-4516-aeec-25f4b0755419
-@capitalMovementIdtoDelete2 = 01980dbc-70cd-4889-925d-f9478db2a286
-@capitalMovementIdtoDelete3 = fcd1d6a9-9213-4aef-b5e6-d438f47ce74f
 
 ### Delete Capital Movements for the junta
 DELETE {{baseUrl}}/capital/movements/{{capitalMovementIdtoDelete1}}
@@ -183,15 +181,15 @@ Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-    "juntaId": "{{juntaId}}",
-    "memberId": "{{memberId}}",
-    "amount": "3000",
+    "juntaId": "{{juntaId2}}",
+    "memberId": "{{memberId2}}",
+    "amount": "3",
     "monthly_interest": "2.5",
     "number_of_installments": 6,
-    "loan_type": "negocio",
-    "payment_type": "mensual",
+    "loan_type": "CUOTA_REBATIR",
+    "payment_type": "MENSUAL",
     "reason": "Business investment",
-    "guarantee_type": "negocio",
+    "guarantee_type": "AVAL",
     "guarantee_detail": "Business assets",
     "form_purchased": true,
     "request_date": "2024-11-01"
@@ -222,3 +220,5 @@ Content-Type: application/json
 # @name verifyFinalCapital
 GET {{baseUrl}}/juntas/{{juntaId2}}
 Authorization: Bearer {{authToken}}
+
+

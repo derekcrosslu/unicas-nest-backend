@@ -1,10 +1,11 @@
 import { Prisma, PrestamoNew, PagoPrestamoNew } from '@prisma/client';
 
-export type PaymentType =
+export type LoanType =
   | 'CUOTA_REBATIR'
   | 'CUOTA_FIJA'
   | 'CUOTA_VENCIMIENTO'
   | 'CUOTA_VARIABLE';
+export type PaymentType = 'QUINCENAL' | 'MENSUAL' | 'SEMANAL';
 export type GuaranteeType = 'AVAL' | 'INMUEBLE' | 'HIPOTECARIA' | 'PRENDARIA';
 export type CapitalMovementType = 'ACCION' | 'MULTA' | 'PRESTAMO' | 'PAGO';
 export type CapitalMovementDirection = 'INCREASE' | 'DECREASE';

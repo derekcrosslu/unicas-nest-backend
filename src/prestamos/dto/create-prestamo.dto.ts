@@ -6,24 +6,39 @@ import {
   IsOptional,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-
-export enum LoanType {
-  PERSONAL = 'personal',
-  NEGOCIO = 'negocio',
-  EMERGENCIA = 'emergencia',
-}
+// import { PaymentType, GuaranteeType } from '../types/prestamo.types';
 
 export enum PaymentType {
-  MENSUAL = 'mensual',
-  QUINCENAL = 'quincenal',
-  SEMANAL = 'semanal',
+  MENSUAL = 'MENSUAL',
+  QUINCENAL = 'QUINCENAL',
+  SEMANAL = 'SEMANAL',
 }
 
 export enum GuaranteeType {
-  PERSONAL = 'personal',
-  NEGOCIO = 'negocio',
-  INMUEBLE = 'inmueble',
+  AVAL = 'AVAL',
+  INMUEBLE = 'INMUEBLE',
+  HIPOTECARIA = 'HIPOTECARIA',
+  PRENDARIA = 'PRENDARIA',
 }
+
+export enum LoanType {
+  CUOTA_REBATIR = 'CUOTA_REBATIR',
+  CUOTA_FIJA = 'CUOTA_FIJA',
+  CUOTA_VENCIMIENTO = 'CUOTA_VENCIMIENTO',
+  CUOTA_VARIABLE = 'CUOTA_VARIABLE',
+}
+
+// export enum PaymentType {
+//   MENSUAL = 'mensual',
+//   QUINCENAL = 'quincenal',
+//   SEMANAL = 'semanal',
+// }
+
+// export enum GuaranteeType {
+//   PERSONAL = 'personal',
+//   NEGOCIO = 'negocio',
+//   INMUEBLE = 'inmueble',
+// }
 
 export class CreatePrestamoDto {
   @ApiProperty({ description: 'ID of the junta' })

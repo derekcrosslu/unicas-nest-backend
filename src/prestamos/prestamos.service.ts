@@ -11,103 +11,7 @@ import { CreatePrestamoDto } from './dto/create-prestamo.dto';
 export class PrestamosService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: CreatePrestamoDto, userId: string, userRole: UserRole) {
-    // Check if user has permission to create prestamos
-    const junta = await this.prisma.junta.findUnique({
-      where: { id: data.juntaId },
-      include: {
-        members: true,
-      },
-    });
-
-    if (!junta) {
-      throw new NotFoundException('Junta not found');
-    }
-
-    const hasPermission =
-      userRole === 'ADMIN' ||
-      (userRole === 'FACILITATOR' && junta.createdById === userId);
-
-    if (!hasPermission) {
-      throw new ForbiddenException(
-        'You do not have permission to create prestamos in this junta',
-      );
-    }
-
-    // Check if member exists and belongs to the junta
-    const isMember = junta.members.some(
-      (member) => member.userId === data.memberId,
-    );
-    if (!isMember) {
-      throw new ForbiddenException('User is not a member of this junta');
-    }
-
-    // Calculate remaining amount (initially same as requested amount)
-    const amount = parseFloat(data.amount);
-    const monthly_interest = parseFloat(data.monthly_interest);
-
-    // Create prestamo and capital movement in a transaction
-    return this.prisma.$transaction(async (prisma) => {
-      // Create the prestamo
-      const prestamo = await prisma.prestamoNew.create({
-        data: {
-          amount,
-          monthly_interest,
-          number_of_installments: data.number_of_installments,
-          request_date: new Date(data.request_date),
-          remaining_amount: amount,
-          loan_type: data.loan_type,
-          payment_type: data.payment_type,
-          reason: data.reason,
-          guarantee_type: data.guarantee_type,
-          guarantee_detail: data.guarantee_detail,
-          form_purchased: data.form_purchased,
-          form_cost: 2.0,
-          loan_code: `${data.loan_type.toUpperCase()}-${Date.now()}`,
-          loan_number: 1, // This should be auto-incremented per junta
-          capital_at_time: junta.current_capital,
-          capital_snapshot: {
-            current_capital: junta.current_capital,
-            base_capital: junta.base_capital,
-            available_capital: junta.available_capital,
-          },
-          juntaId: data.juntaId,
-          memberId: data.memberId,
-          avalId: data.avalId,
-          status: 'PENDING',
-          affects_capital: true,
-        },
-        include: {
-          member: true,
-          junta: true,
-          pagos: true,
-        },
-      });
-
-      // Create capital movement
-      await prisma.capitalMovement.create({
-        data: {
-          amount,
-          type: 'prestamo',
-          direction: 'decrease',
-          description: `Préstamo ${data.loan_type} - ${prestamo.loan_code}`,
-          juntaId: data.juntaId,
-          prestamoId: prestamo.id,
-        },
-      });
-
-      // Update junta's capital
-      await prisma.junta.update({
-        where: { id: data.juntaId },
-        data: {
-          current_capital: { decrement: amount },
-          available_capital: { decrement: amount },
-        },
-      });
-
-      return prestamo;
-    });
-  }
+  // Add this method to your PrestamosService class
 
   async createPago(
     prestamoId: string,
@@ -192,6 +96,7 @@ export class PrestamosService {
             status: 'PAID',
             paid: true,
             remaining_amount: 0,
+            number_of_installments: 0,
           },
         });
       } else {
@@ -200,11 +105,121 @@ export class PrestamosService {
           where: { id: prestamoId },
           data: {
             remaining_amount: prestamo.amount - totalPaid,
+            // Optionally update remaining_installments based on your business logic
+            status: 'PARTIAL',
           },
         });
       }
 
       return pago;
+    });
+  }
+
+  async create(data: CreatePrestamoDto, userId: string, userRole: UserRole) {
+    // Check if user has permission to create prestamos
+    const junta = await this.prisma.junta.findUnique({
+      where: { id: data.juntaId },
+      include: {
+        members: true,
+      },
+    });
+
+    if (!junta) {
+      throw new NotFoundException('Junta not found');
+    }
+
+    const hasPermission =
+      userRole === 'ADMIN' ||
+      (userRole === 'FACILITATOR' && junta.createdById === userId);
+
+    if (!hasPermission) {
+      throw new ForbiddenException(
+        'You do not have permission to create prestamos in this junta',
+      );
+    }
+
+    // Check if member exists and belongs to the junta
+    const isMember = junta.members.some(
+      (member) => member.userId === data.memberId,
+    );
+    if (!isMember) {
+      throw new ForbiddenException('User is not a member of this junta');
+    }
+
+    // Calculate remaining amount (initially same as requested amount)
+    const amount = parseFloat(data.amount);
+    const monthly_interest = parseFloat(data.monthly_interest);
+
+    // Get the latest loan number for this junta
+    const latestLoan = await this.prisma.prestamoNew.findFirst({
+      where: { juntaId: data.juntaId },
+      orderBy: { loan_number: 'desc' },
+      select: { loan_number: true },
+    });
+
+    // Increment the loan number or start at 1 if no loans exist
+    const nextLoanNumber = latestLoan ? latestLoan.loan_number + 1 : 1;
+
+    // Create prestamo and capital movement in a transaction
+    return this.prisma.$transaction(async (prisma) => {
+      // Create the prestamo
+      const prestamo = await prisma.prestamoNew.create({
+        data: {
+          amount,
+          monthly_interest,
+          number_of_installments: data.number_of_installments,
+          request_date: new Date(data.request_date),
+          remaining_amount: amount,
+          loan_type: data.loan_type,
+          payment_type: data.payment_type,
+          reason: data.reason,
+          guarantee_type: data.guarantee_type,
+          guarantee_detail: data.guarantee_detail,
+          form_purchased: data.form_purchased,
+          form_cost: 2.0,
+          loan_code: `${data.loan_type.toUpperCase()}-${Date.now()}`,
+          loan_number: nextLoanNumber, // Use the incremented loan number
+          capital_at_time: junta.current_capital,
+          capital_snapshot: {
+            current_capital: junta.current_capital,
+            base_capital: junta.base_capital,
+            available_capital: junta.available_capital,
+          },
+          juntaId: data.juntaId,
+          memberId: data.memberId,
+          avalId: data.avalId,
+          status: 'PENDING',
+          affects_capital: true,
+        },
+        include: {
+          member: true,
+          junta: true,
+          pagos: true,
+        },
+      });
+
+      // Create capital movement
+      await prisma.capitalMovement.create({
+        data: {
+          amount,
+          type: 'prestamo',
+          direction: 'decrease',
+          description: `Préstamo ${data.loan_type} - ${prestamo.loan_code}`,
+          juntaId: data.juntaId,
+          prestamoId: prestamo.id,
+        },
+      });
+
+      // Update junta's capital
+      await prisma.junta.update({
+        where: { id: data.juntaId },
+        data: {
+          current_capital: { decrement: amount },
+          available_capital: { decrement: amount },
+        },
+      });
+
+      return prestamo;
     });
   }
 
