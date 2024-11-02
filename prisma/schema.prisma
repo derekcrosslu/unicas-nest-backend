@@ -37,6 +37,7 @@ model PrestamoNew {
   loan_number            Int               @map("loan_number")
   payment_type           String            @map("payment_type")
   reason                 String
+  loan_type              String            @map("loan_type")
   capital_movements      CapitalMovement[]
   pagos                  PagoPrestamoNew[]
   aval                   User?             @relation("Aval", fields: [avalId], references: [id])
@@ -44,7 +45,6 @@ model PrestamoNew {
   member                 User              @relation(fields: [memberId], references: [id])
 
   @@unique([juntaId, loan_number])
-  @@index([original_prestamo_id])
 }
 
 model CapitalMovement {

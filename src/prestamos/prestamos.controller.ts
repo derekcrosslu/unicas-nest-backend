@@ -21,6 +21,7 @@ import {
   MigrationStats,
   DataConsistencyStats,
 } from './types/prestamos-monitor.types';
+import { CreatePrestamoDto } from './dto/create-prestamo.dto';
 
 interface RequestWithUser extends Request {
   user: {
@@ -41,7 +42,6 @@ export class PrestamosController {
     private readonly prestamosMonitorService: PrestamosMonitorService,
   ) {}
 
-  // Existing endpoints
   @Get('junta/:juntaId')
   @ApiOperation({ summary: 'Get all prestamos for a junta' })
   async findByJunta(
@@ -71,23 +71,10 @@ export class PrestamosController {
   @Post()
   @ApiOperation({ summary: 'Create a new prestamo' })
   async create(
-    @Body()
-    data: {
-      amount: number;
-      description: string;
-      juntaId: string;
-      memberId: string;
-    },
+    @Body() data: CreatePrestamoDto,
     @Request() req: RequestWithUser,
   ) {
-    return this.prestamosService.create(
-      data.juntaId,
-      data.memberId,
-      data.amount,
-      data.description,
-      req.user.id,
-      req.user.role,
-    );
+    return this.prestamosService.create(data, req.user.id, req.user.role);
   }
 
   @Post(':id/pagos')

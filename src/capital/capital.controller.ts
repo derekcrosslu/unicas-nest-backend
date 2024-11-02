@@ -28,6 +28,20 @@ interface RequestWithUser extends Request {
 export class CapitalController {
   constructor(private readonly capitalService: CapitalService) {}
 
+  // Capital Movements endpoint
+  @Get('movements/junta/:juntaId')
+  @ApiOperation({ summary: 'Get all capital movements for a junta' })
+  async getCapitalMovements(
+    @Param('juntaId') juntaId: string,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.capitalService.findCapitalMovements(
+      juntaId,
+      req.user.id,
+      req.user.role,
+    );
+  }
+
   // Capital Social endpoints
   @Post('social')
   @ApiOperation({ summary: 'Create capital social for a junta' })

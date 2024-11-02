@@ -1,234 +1,123 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
-import { randomUUID } from 'crypto';
+import { Prestamo, PrestamoNew } from '@prisma/client';
 
 @Injectable()
 export class PrestamosSyncService {
-  private readonly logger = new Logger(PrestamosSyncService.name);
-
   constructor(private prisma: PrismaService) {}
 
-  async migrateAllPrestamos() {
-    const oldPrestamos = await this.prisma.prestamo.findMany({
-      include: {
-        pagos: true,
-        member: true,
-        junta: true,
-      },
-    });
-
-    this.logger.log(`Found ${oldPrestamos.length} prestamos to migrate`);
-
-    const results = [];
-    for (const oldPrestamo of oldPrestamos) {
-      const result = await this.migratePrestamo(oldPrestamo.id);
-      results.push(result);
-    }
-
-    this.logger.log('Prestamos migration completed');
-    return results;
-  }
-
-  async migratePrestamo(id: string) {
-    const oldPrestamo = await this.prisma.prestamo.findUnique({
+  async migratePrestamo(id: string): Promise<PrestamoNew> {
+    // Get the original prestamo
+    const prestamo = await this.prisma.prestamo.findUnique({
       where: { id },
       include: {
-        pagos: true,
-        member: true,
         junta: true,
       },
     });
 
-    if (!oldPrestamo) {
-      throw new NotFoundException(`Prestamo ${id} not found`);
+    if (!prestamo) {
+      throw new Error('Prestamo not found');
     }
 
-    return await this.prisma.$transaction(async (tx) => {
-      // Get the next loan number for this junta
-      const lastLoan = await tx.prestamoNew.findFirst({
-        where: { juntaId: oldPrestamo.juntaId },
-        orderBy: { loan_number: 'desc' },
-        select: { loan_number: true },
-      });
+    // Get junta's current capital
+    const junta = await this.prisma.junta.findUnique({
+      where: { id: prestamo.juntaId },
+      select: {
+        current_capital: true,
+        base_capital: true,
+        available_capital: true,
+      },
+    });
 
-      const nextLoanNumber = (lastLoan?.loan_number || 0) + 1;
-      const loanCode = `LOAN-${oldPrestamo.juntaId}-${nextLoanNumber}`;
+    if (!junta) {
+      throw new Error('Junta not found');
+    }
 
-      // Create new prestamo
-      const newPrestamo = await tx.prestamoNew.create({
-        data: {
-          amount: oldPrestamo.amount,
-          description: oldPrestamo.description,
-          status: oldPrestamo.status,
-          request_date: oldPrestamo.createdAt,
-          monthly_interest: 0.02, // Default interest rate
-          number_of_installments: 12, // Default installments
-          payment_type: 'CUOTA_FIJA', // Default payment type
-          reason: oldPrestamo.description || 'Migrated loan',
-          guarantee_type: 'NONE',
-          remaining_amount: oldPrestamo.amount,
-          capital_at_time: oldPrestamo.junta.current_capital,
-          capital_snapshot: {},
-          juntaId: oldPrestamo.juntaId,
-          memberId: oldPrestamo.memberId,
-          loan_number: nextLoanNumber,
-          loan_code: loanCode,
-          original_prestamo_id: oldPrestamo.id,
+    // Create new prestamo with the same data
+    return this.prisma.prestamoNew.create({
+      data: {
+        amount: prestamo.amount,
+        description: prestamo.description || '',
+        status: prestamo.status,
+        request_date: prestamo.createdAt,
+        monthly_interest: 2.0, // Default value
+        number_of_installments: 12, // Default value
+        payment_type: 'mensual', // Default value
+        reason: prestamo.description || 'Migrated loan',
+        guarantee_type: 'personal', // Default value
+        guarantee_detail: 'Migrated loan',
+        loan_type: 'personal', // Default value
+        loan_code: `MIGRATED-${Date.now()}`,
+        loan_number: await this.getNextLoanNumber(prestamo.juntaId),
+        form_purchased: true,
+        capital_at_time: junta.current_capital,
+        capital_snapshot: {
+          current_capital: junta.current_capital,
+          base_capital: junta.base_capital,
+          available_capital: junta.available_capital,
         },
-      });
-
-      // Sync pagos
-      for (const oldPago of oldPrestamo.pagos) {
-        await tx.pagoPrestamoNew.create({
-          data: {
-            amount: oldPago.amount,
-            date: oldPago.date,
-            prestamoId: newPrestamo.id,
-            original_pago_id: oldPago.id,
+        remaining_amount: prestamo.amount,
+        affects_capital: true,
+        original_prestamo_id: prestamo.id,
+        junta: {
+          connect: {
+            id: prestamo.juntaId,
           },
-        });
-      }
-
-      // Create capital movement for the loan
-      await tx.$executeRaw(
-        Prisma.sql`
-          INSERT INTO "CapitalMovement" (
-            id, amount, type, direction, description, "juntaId", "prestamoId"
-          ) VALUES (
-            ${randomUUID()}, ${oldPrestamo.amount}, 'PRESTAMO', 'DECREASE', 
-            ${`Migrated loan ${oldPrestamo.id}`}, ${oldPrestamo.juntaId}, ${newPrestamo.id}
-          )
-        `,
-      );
-
-      // Create capital movements for payments
-      for (const oldPago of oldPrestamo.pagos) {
-        await tx.$executeRaw(
-          Prisma.sql`
-            INSERT INTO "CapitalMovement" (
-              id, amount, type, direction, description, "juntaId", "pagoId"
-            ) VALUES (
-              ${randomUUID()}, ${oldPago.amount}, 'PAGO', 'INCREASE', 
-              ${`Migrated payment for loan ${oldPrestamo.id}`}, ${oldPrestamo.juntaId}, ${oldPago.id}
-            )
-          `,
-        );
-      }
-
-      this.logger.log(
-        `Migrated prestamo ${oldPrestamo.id} to ${newPrestamo.id}`,
-      );
-
-      return newPrestamo;
-    });
-  }
-
-  async verifyDataConsistency() {
-    const results = {
-      prestamos: {
-        old: 0,
-        new: 0,
-        migrated: 0,
-      },
-      pagos: {
-        old: 0,
-        new: 0,
-        migrated: 0,
-      },
-      capital: {
-        movements: 0,
-        totalIncrease: 0,
-        totalDecrease: 0,
-      },
-    };
-
-    // Count old prestamos
-    results.prestamos.old = await this.prisma.prestamo.count();
-
-    // Count new prestamos
-    results.prestamos.new = await this.prisma.prestamoNew.count();
-
-    // Count migrated prestamos
-    results.prestamos.migrated = await this.prisma.prestamoNew.count({
-      where: {
-        NOT: {
-          original_prestamo_id: null,
+        },
+        member: {
+          connect: {
+            id: prestamo.memberId,
+          },
         },
       },
-    });
-
-    // Count old pagos
-    results.pagos.old = await this.prisma.pagoPrestamo.count();
-
-    // Count new pagos
-    results.pagos.new = await this.prisma.pagoPrestamoNew.count();
-
-    // Count migrated pagos
-    results.pagos.migrated = await this.prisma.pagoPrestamoNew.count({
-      where: {
-        NOT: {
-          original_pago_id: null,
-        },
-      },
-    });
-
-    // Get capital movements stats
-    const movements = await this.prisma.capitalMovement.groupBy({
-      by: ['direction'],
-      _sum: {
-        amount: true,
-      },
-      _count: true,
-    });
-
-    results.capital.movements = await this.prisma.capitalMovement.count();
-    results.capital.totalIncrease =
-      movements.find((m) => m.direction === 'INCREASE')?._sum.amount || 0;
-    results.capital.totalDecrease =
-      movements.find((m) => m.direction === 'DECREASE')?._sum.amount || 0;
-
-    return results;
-  }
-
-  async rollbackPrestamo(id: string) {
-    const newPrestamo = await this.prisma.prestamoNew.findUnique({
-      where: { id },
       include: {
+        member: true,
+        junta: true,
         pagos: true,
       },
     });
+  }
 
-    if (!newPrestamo) {
-      throw new NotFoundException(`Prestamo ${id} not found`);
+  private async getNextLoanNumber(juntaId: string): Promise<number> {
+    const lastLoan = await this.prisma.prestamoNew.findFirst({
+      where: { juntaId },
+      orderBy: { loan_number: 'desc' },
+      select: { loan_number: true },
+    });
+
+    return (lastLoan?.loan_number || 0) + 1;
+  }
+
+  async migrateAllPrestamos(): Promise<PrestamoNew[]> {
+    const prestamos = await this.prisma.prestamo.findMany();
+    const migratedPrestamos: PrestamoNew[] = [];
+
+    for (const prestamo of prestamos) {
+      const migrated = await this.migratePrestamo(prestamo.id);
+      migratedPrestamos.push(migrated);
     }
 
-    return await this.prisma.$transaction(async (tx) => {
-      // Delete capital movements
-      await tx.$executeRaw(
-        Prisma.sql`DELETE FROM "CapitalMovement" WHERE "prestamoId" = ${id}`,
-      );
+    return migratedPrestamos;
+  }
 
-      // Delete pagos capital movements
-      for (const pago of newPrestamo.pagos) {
-        await tx.$executeRaw(
-          Prisma.sql`DELETE FROM "CapitalMovement" WHERE "pagoId" = ${pago.id}`,
-        );
-      }
+  async verifyDataConsistency(): Promise<{
+    totalOriginal: number;
+    totalMigrated: number;
+    matches: boolean;
+  }> {
+    const totalOriginal = await this.prisma.prestamo.count();
+    const totalMigrated = await this.prisma.prestamoNew.count();
 
-      // Delete pagos
-      await tx.pagoPrestamoNew.deleteMany({
-        where: { prestamoId: id },
-      });
+    return {
+      totalOriginal,
+      totalMigrated,
+      matches: totalOriginal === totalMigrated,
+    };
+  }
 
-      // Delete prestamo
-      await tx.prestamoNew.delete({
-        where: { id },
-      });
-
-      this.logger.log(`Rolled back prestamo ${id}`);
-
-      return { success: true, message: `Rolled back prestamo ${id}` };
+  async rollbackPrestamo(id: string): Promise<void> {
+    await this.prisma.prestamoNew.delete({
+      where: { id },
     });
   }
 }

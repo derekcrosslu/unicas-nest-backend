@@ -10,7 +10,47 @@ import { UserRole } from '../types/user-role';
 export class CapitalService {
   constructor(private prisma: PrismaService) {}
 
-  // Capital Social methods
+  async findCapitalMovements(
+    juntaId: string,
+    userId: string,
+    userRole: UserRole,
+  ) {
+    // Check if user has access to this junta
+    const junta = await this.prisma.junta.findUnique({
+      where: { id: juntaId },
+      include: {
+        members: true,
+      },
+    });
+
+    if (!junta) {
+      throw new NotFoundException('Junta not found');
+    }
+
+    const hasAccess =
+      userRole === 'ADMIN' ||
+      (userRole === 'FACILITATOR' && junta.createdById === userId) ||
+      junta.members.some((member) => member.userId === userId);
+
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this junta');
+    }
+
+    // Get all capital movements for the junta
+    return this.prisma.capitalMovement.findMany({
+      where: { juntaId },
+      include: {
+        accion: true,
+        multa: true,
+        prestamo: true,
+        pago: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
   async createCapitalSocial(
     juntaId: string,
     amount: number,
@@ -20,6 +60,9 @@ export class CapitalService {
     // Check if user has permission to create capital social
     const junta = await this.prisma.junta.findUnique({
       where: { id: juntaId },
+      include: {
+        members: true,
+      },
     });
 
     if (!junta) {
@@ -36,26 +79,10 @@ export class CapitalService {
       );
     }
 
-    // Check if capital social already exists for this junta
-    const existingCapital = await this.prisma.capitalSocial.findUnique({
-      where: { juntaId },
-    });
-
-    if (existingCapital) {
-      throw new ForbiddenException(
-        'Capital social already exists for this junta',
-      );
-    }
-
     return this.prisma.capitalSocial.create({
       data: {
         amount,
         juntaId,
-      },
-      include: {
-        junta: true,
-        ingresos: true,
-        gastos: true,
       },
     });
   }
@@ -82,20 +109,13 @@ export class CapitalService {
       throw new ForbiddenException('You do not have access to this junta');
     }
 
-    const capitalSocial = await this.prisma.capitalSocial.findUnique({
+    return this.prisma.capitalSocial.findUnique({
       where: { juntaId },
       include: {
-        junta: true,
         ingresos: true,
         gastos: true,
       },
     });
-
-    if (!capitalSocial) {
-      throw new NotFoundException('Capital social not found');
-    }
-
-    return capitalSocial;
   }
 
   async updateCapitalSocial(
@@ -104,6 +124,7 @@ export class CapitalService {
     userId: string,
     userRole: UserRole,
   ) {
+    // Check if capital social exists
     const capitalSocial = await this.prisma.capitalSocial.findUnique({
       where: { id },
       include: {
@@ -115,6 +136,7 @@ export class CapitalService {
       throw new NotFoundException('Capital social not found');
     }
 
+    // Check if user has permission to update capital social
     const hasPermission =
       userRole === 'ADMIN' ||
       (userRole === 'FACILITATOR' &&
@@ -129,15 +151,9 @@ export class CapitalService {
     return this.prisma.capitalSocial.update({
       where: { id },
       data: { amount },
-      include: {
-        junta: true,
-        ingresos: true,
-        gastos: true,
-      },
     });
   }
 
-  // Ingreso Capital methods
   async createIngreso(
     capitalSocialId: string,
     amount: number,
@@ -145,6 +161,7 @@ export class CapitalService {
     userId: string,
     userRole: UserRole,
   ) {
+    // Check if capital social exists
     const capitalSocial = await this.prisma.capitalSocial.findUnique({
       where: { id: capitalSocialId },
       include: {
@@ -156,6 +173,7 @@ export class CapitalService {
       throw new NotFoundException('Capital social not found');
     }
 
+    // Check if user has permission to create ingreso
     const hasPermission =
       userRole === 'ADMIN' ||
       (userRole === 'FACILITATOR' &&
@@ -163,27 +181,17 @@ export class CapitalService {
 
     if (!hasPermission) {
       throw new ForbiddenException(
-        'You do not have permission to create ingresos',
+        'You do not have permission to create ingreso',
       );
     }
 
-    const [ingreso, updatedCapital] = await this.prisma.$transaction([
-      this.prisma.ingresoCapital.create({
-        data: {
-          amount,
-          description,
-          capitalSocialId,
-        },
-      }),
-      this.prisma.capitalSocial.update({
-        where: { id: capitalSocialId },
-        data: {
-          amount: { increment: amount },
-        },
-      }),
-    ]);
-
-    return ingreso;
+    return this.prisma.ingresoCapital.create({
+      data: {
+        amount,
+        description,
+        capitalSocialId,
+      },
+    });
   }
 
   async findIngresos(
@@ -191,6 +199,7 @@ export class CapitalService {
     userId: string,
     userRole: UserRole,
   ) {
+    // Check if capital social exists
     const capitalSocial = await this.prisma.capitalSocial.findUnique({
       where: { id: capitalSocialId },
       include: {
@@ -206,6 +215,7 @@ export class CapitalService {
       throw new NotFoundException('Capital social not found');
     }
 
+    // Check if user has access to this capital social
     const hasAccess =
       userRole === 'ADMIN' ||
       (userRole === 'FACILITATOR' &&
@@ -213,7 +223,7 @@ export class CapitalService {
       capitalSocial.junta.members.some((member) => member.userId === userId);
 
     if (!hasAccess) {
-      throw new ForbiddenException('You do not have access to these ingresos');
+      throw new ForbiddenException('You do not have access to this junta');
     }
 
     return this.prisma.ingresoCapital.findMany({
@@ -225,6 +235,7 @@ export class CapitalService {
   }
 
   async removeIngreso(id: string, userId: string, userRole: UserRole) {
+    // Check if ingreso exists
     const ingreso = await this.prisma.ingresoCapital.findUnique({
       where: { id },
       include: {
@@ -240,6 +251,7 @@ export class CapitalService {
       throw new NotFoundException('Ingreso not found');
     }
 
+    // Check if user has permission to delete ingreso
     const hasPermission =
       userRole === 'ADMIN' ||
       (userRole === 'FACILITATOR' &&
@@ -247,26 +259,15 @@ export class CapitalService {
 
     if (!hasPermission) {
       throw new ForbiddenException(
-        'You do not have permission to delete this ingreso',
+        'You do not have permission to delete ingreso',
       );
     }
 
-    const [deletedIngreso, updatedCapital] = await this.prisma.$transaction([
-      this.prisma.ingresoCapital.delete({
-        where: { id },
-      }),
-      this.prisma.capitalSocial.update({
-        where: { id: ingreso.capitalSocialId },
-        data: {
-          amount: { decrement: ingreso.amount },
-        },
-      }),
-    ]);
-
-    return { message: 'Ingreso deleted successfully' };
+    return this.prisma.ingresoCapital.delete({
+      where: { id },
+    });
   }
 
-  // Gasto Capital methods
   async createGasto(
     capitalSocialId: string,
     amount: number,
@@ -274,6 +275,7 @@ export class CapitalService {
     userId: string,
     userRole: UserRole,
   ) {
+    // Check if capital social exists
     const capitalSocial = await this.prisma.capitalSocial.findUnique({
       where: { id: capitalSocialId },
       include: {
@@ -285,6 +287,7 @@ export class CapitalService {
       throw new NotFoundException('Capital social not found');
     }
 
+    // Check if user has permission to create gasto
     const hasPermission =
       userRole === 'ADMIN' ||
       (userRole === 'FACILITATOR' &&
@@ -292,31 +295,17 @@ export class CapitalService {
 
     if (!hasPermission) {
       throw new ForbiddenException(
-        'You do not have permission to create gastos',
+        'You do not have permission to create gasto',
       );
     }
 
-    if (capitalSocial.amount < amount) {
-      throw new ForbiddenException('Insufficient capital social balance');
-    }
-
-    const [gasto, updatedCapital] = await this.prisma.$transaction([
-      this.prisma.gastoCapital.create({
-        data: {
-          amount,
-          description,
-          capitalSocialId,
-        },
-      }),
-      this.prisma.capitalSocial.update({
-        where: { id: capitalSocialId },
-        data: {
-          amount: { decrement: amount },
-        },
-      }),
-    ]);
-
-    return gasto;
+    return this.prisma.gastoCapital.create({
+      data: {
+        amount,
+        description,
+        capitalSocialId,
+      },
+    });
   }
 
   async findGastos(
@@ -324,6 +313,7 @@ export class CapitalService {
     userId: string,
     userRole: UserRole,
   ) {
+    // Check if capital social exists
     const capitalSocial = await this.prisma.capitalSocial.findUnique({
       where: { id: capitalSocialId },
       include: {
@@ -339,6 +329,7 @@ export class CapitalService {
       throw new NotFoundException('Capital social not found');
     }
 
+    // Check if user has access to this capital social
     const hasAccess =
       userRole === 'ADMIN' ||
       (userRole === 'FACILITATOR' &&
@@ -346,7 +337,7 @@ export class CapitalService {
       capitalSocial.junta.members.some((member) => member.userId === userId);
 
     if (!hasAccess) {
-      throw new ForbiddenException('You do not have access to these gastos');
+      throw new ForbiddenException('You do not have access to this junta');
     }
 
     return this.prisma.gastoCapital.findMany({
@@ -358,6 +349,7 @@ export class CapitalService {
   }
 
   async removeGasto(id: string, userId: string, userRole: UserRole) {
+    // Check if gasto exists
     const gasto = await this.prisma.gastoCapital.findUnique({
       where: { id },
       include: {
@@ -373,6 +365,7 @@ export class CapitalService {
       throw new NotFoundException('Gasto not found');
     }
 
+    // Check if user has permission to delete gasto
     const hasPermission =
       userRole === 'ADMIN' ||
       (userRole === 'FACILITATOR' &&
@@ -380,22 +373,12 @@ export class CapitalService {
 
     if (!hasPermission) {
       throw new ForbiddenException(
-        'You do not have permission to delete this gasto',
+        'You do not have permission to delete gasto',
       );
     }
 
-    const [deletedGasto, updatedCapital] = await this.prisma.$transaction([
-      this.prisma.gastoCapital.delete({
-        where: { id },
-      }),
-      this.prisma.capitalSocial.update({
-        where: { id: gasto.capitalSocialId },
-        data: {
-          amount: { increment: gasto.amount },
-        },
-      }),
-    ]);
-
-    return { message: 'Gasto deleted successfully' };
+    return this.prisma.gastoCapital.delete({
+      where: { id },
+    });
   }
 }

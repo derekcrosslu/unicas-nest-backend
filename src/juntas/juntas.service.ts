@@ -3,22 +3,19 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
-import { CreateJuntaDto } from './dto/create-junta.dto';
 import { PrismaService } from '../prisma/prisma.service';
-import { UsersService } from '../users/users.service';
-import { UserRole } from '../types/user-role';
+import { CreateJuntaDto } from './dto/create-junta.dto';
 import { AddMemberDto } from './dto/add-member.dto';
+import { UserRole } from '../types/user-role';
 
 @Injectable()
 export class JuntasService {
-  constructor(
-    private prisma: PrismaService,
-    private usersService: UsersService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async create(createJuntaDto: CreateJuntaDto, userId: string) {
-    return this.prisma.junta.create({
+    const junta = await this.prisma.junta.create({
       data: {
         name: createJuntaDto.name,
         description: createJuntaDto.description,
@@ -34,6 +31,16 @@ export class JuntasService {
         },
       },
     });
+
+    // Add the creator as the first member
+    await this.prisma.juntaMember.create({
+      data: {
+        userId,
+        juntaId: junta.id,
+      },
+    });
+
+    return junta;
   }
 
   async findAll(userId: string, userRole: UserRole) {
@@ -121,56 +128,116 @@ export class JuntasService {
   async delete(id: string, userId: string, userRole: UserRole) {
     const junta = await this.findOne(id, userId, userRole);
 
-    // Check if user has permission to delete
-    const hasPermission =
-      userRole === 'ADMIN' ||
-      (userRole === 'FACILITATOR' && junta.createdById === userId);
+    // Only admins can delete juntas with dependencies
+    const isAdmin = userRole === 'ADMIN';
+    const isFacilitatorOwner =
+      userRole === 'FACILITATOR' && junta.createdById === userId;
 
-    if (!hasPermission) {
+    if (!isAdmin && !isFacilitatorOwner) {
       throw new ForbiddenException(
         'You do not have permission to delete this junta',
       );
     }
 
-    // Delete all related records first
-    await this.prisma.$transaction([
-      // Delete all members
-      this.prisma.juntaMember.deleteMany({
-        where: { juntaId: id },
-      }),
-      // Delete all prestamos
-      this.prisma.prestamo.deleteMany({
-        where: { juntaId: id },
-      }),
-      // Delete all multas
-      this.prisma.multa.deleteMany({
-        where: { juntaId: id },
-      }),
-      // Delete all acciones
-      this.prisma.accion.deleteMany({
-        where: { juntaId: id },
-      }),
-      // Delete all agenda items
-      this.prisma.agendaItem.deleteMany({
-        where: { juntaId: id },
-      }),
-      // Delete capital social and related records
-      this.prisma.ingresoCapital.deleteMany({
-        where: { capitalSocial: { juntaId: id } },
-      }),
-      this.prisma.gastoCapital.deleteMany({
-        where: { capitalSocial: { juntaId: id } },
-      }),
-      this.prisma.capitalSocial.deleteMany({
-        where: { juntaId: id },
-      }),
-      // Finally, delete the junta itself
-      this.prisma.junta.delete({
-        where: { id },
-      }),
-    ]);
+    try {
+      // If not admin, check for dependencies
+      if (!isAdmin) {
+        const [capitalMovements, loans] = await Promise.all([
+          this.prisma.capitalMovement.findMany({
+            where: { juntaId: id },
+          }),
+          this.prisma.prestamoNew.findMany({
+            where: { juntaId: id },
+          }),
+        ]);
 
-    return { message: 'Junta deleted successfully' };
+        if (capitalMovements.length > 0 || loans.length > 0) {
+          let errorMessage = 'Cannot delete this junta because it has: ';
+          const reasons = [];
+
+          if (capitalMovements.length > 0) {
+            reasons.push(`${capitalMovements.length} capital movements`);
+          }
+          if (loans.length > 0) {
+            reasons.push(`${loans.length} active loans`);
+          }
+
+          errorMessage += reasons.join(' and ');
+          errorMessage +=
+            '. Please contact an administrator to delete this junta.';
+
+          throw new BadRequestException(errorMessage);
+        }
+      }
+
+      // Delete everything in a transaction
+      await this.prisma.$transaction([
+        // Delete all capital movements
+        this.prisma.capitalMovement.deleteMany({
+          where: { juntaId: id },
+        }),
+
+        // Delete all loan payments
+        this.prisma.pagoPrestamoNew.deleteMany({
+          where: {
+            prestamo: {
+              juntaId: id,
+            },
+          },
+        }),
+
+        // Delete all loans
+        this.prisma.prestamoNew.deleteMany({
+          where: { juntaId: id },
+        }),
+
+        // Delete all multas
+        this.prisma.multa.deleteMany({
+          where: { juntaId: id },
+        }),
+
+        // Delete all acciones
+        this.prisma.accion.deleteMany({
+          where: { juntaId: id },
+        }),
+
+        // Delete all agenda items
+        this.prisma.agendaItem.deleteMany({
+          where: { juntaId: id },
+        }),
+
+        // Delete capital social and related records
+        this.prisma.ingresoCapital.deleteMany({
+          where: { capitalSocial: { juntaId: id } },
+        }),
+        this.prisma.gastoCapital.deleteMany({
+          where: { capitalSocial: { juntaId: id } },
+        }),
+        this.prisma.capitalSocial.deleteMany({
+          where: { juntaId: id },
+        }),
+
+        // Delete all junta members
+        this.prisma.juntaMember.deleteMany({
+          where: { juntaId: id },
+        }),
+
+        // Finally, delete the junta itself
+        this.prisma.junta.delete({
+          where: { id },
+        }),
+      ]);
+
+      return { message: 'Junta deleted successfully' };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      throw new BadRequestException(
+        'An error occurred while trying to delete the junta. Please try again later.',
+      );
+    }
   }
 
   async getMembers(id: string, userId: string, userRole: UserRole) {

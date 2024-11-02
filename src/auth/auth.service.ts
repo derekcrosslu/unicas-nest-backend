@@ -10,7 +10,16 @@ type UserWithoutPassword = Omit<User, 'password'>;
 const stripPhoneNumber = (phone: string): string => {
   if (!phone) return phone;
   // Remove any non-digit characters (including +)
-  return phone.replace(/\D/g, '').replace(/^51/, '');
+  const cleaned = phone.replace(/\D/g, '');
+  // Remove country code if present
+  return cleaned.replace(/^51/, '');
+};
+
+const formatPhoneNumber = (phone: string): string => {
+  if (!phone) return phone;
+  // Remove any non-digit characters and ensure 51 prefix
+  const cleaned = phone.replace(/\D/g, '');
+  return cleaned.startsWith('51') ? cleaned : `51${cleaned}`;
 };
 
 @Injectable()
@@ -21,34 +30,20 @@ export class AuthService {
   ) {}
 
   async validateUser(loginDto: LoginDto): Promise<UserWithoutPassword | null> {
-    if (!loginDto.email && !loginDto.phone) {
-      throw new UnauthorizedException('Email or phone number is required');
+    if (!loginDto.phone) {
+      throw new UnauthorizedException('Phone number is required');
     }
 
     console.log('Login attempt with:', {
-      email: loginDto.email,
       phone: loginDto.phone,
     });
 
     // Strip the phone number to match database format
-    const strippedPhone = loginDto.phone
-      ? stripPhoneNumber(loginDto.phone)
-      : null;
-
+    const strippedPhone = stripPhoneNumber(loginDto.phone);
     console.log('Stripped phone number:', strippedPhone);
 
-    // Phone number is already normalized by the DTO transform
-    const whereCondition = {
-      OR: [
-        ...(loginDto.email ? [{ email: loginDto.email }] : []),
-        ...(strippedPhone ? [{ phone: strippedPhone }] : []),
-      ],
-    };
-
-    console.log('Search condition:', JSON.stringify(whereCondition, null, 2));
-
     const user = await this.prisma.user.findFirst({
-      where: whereCondition,
+      where: { phone: strippedPhone },
     });
 
     console.log(
@@ -84,10 +79,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    const formattedPhone = formatPhoneNumber(user.phone);
     const payload = {
-      email: user.email,
-      phone: user.phone,
       sub: user.id,
+      phone: formattedPhone,
       role: user.role,
     };
 
@@ -95,24 +90,22 @@ export class AuthService {
       access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
-        email: user.email,
         role: user.role,
-        phone: `+51${user.phone}`, // Add prefix for response
+        phone: `+${formattedPhone}`, // Add + prefix for response
         username: user.username,
       },
     };
   }
 
   async register(registerDto: RegisterDto, role: string = 'USER') {
-    if (!registerDto.email && !registerDto.phone) {
-      throw new UnauthorizedException('Email or phone number is required');
+    if (!registerDto.phone) {
+      throw new UnauthorizedException('Phone number is required');
     }
 
     // Strip phone number for storage
     const strippedPhone = stripPhoneNumber(registerDto.phone);
 
     console.log('Register attempt with:', {
-      email: registerDto.email,
       phone: registerDto.phone,
       stripped_phone: strippedPhone,
       username: registerDto.username,
@@ -120,24 +113,19 @@ export class AuthService {
 
     const existingUser = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          ...(registerDto.email ? [{ email: registerDto.email }] : []),
-          { username: registerDto.username },
-          { phone: strippedPhone },
-        ],
+        OR: [{ username: registerDto.username }, { phone: strippedPhone }],
       },
     });
 
     if (existingUser) {
       throw new UnauthorizedException(
-        'Email, username, or phone number already exists',
+        'Username or phone number already exists',
       );
     }
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
     const newUser = await this.prisma.user.create({
       data: {
-        email: registerDto.email,
         username: registerDto.username,
         password: hashedPassword,
         phone: strippedPhone,
@@ -154,8 +142,7 @@ export class AuthService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...result } = newUser;
     return this.login({
-      ...(result.email ? { email: result.email } : {}),
-      ...(result.phone ? { phone: result.phone } : {}),
+      phone: result.phone,
       password: registerDto.password,
     });
   }

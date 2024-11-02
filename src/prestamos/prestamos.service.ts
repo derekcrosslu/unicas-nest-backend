@@ -5,22 +5,16 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '../types/user-role';
+import { CreatePrestamoDto } from './dto/create-prestamo.dto';
 
 @Injectable()
 export class PrestamosService {
   constructor(private prisma: PrismaService) {}
 
-  async create(
-    juntaId: string,
-    memberId: string,
-    amount: number,
-    description: string,
-    userId: string,
-    userRole: UserRole,
-  ) {
+  async create(data: CreatePrestamoDto, userId: string, userRole: UserRole) {
     // Check if user has permission to create prestamos
     const junta = await this.prisma.junta.findUnique({
-      where: { id: juntaId },
+      where: { id: data.juntaId },
       include: {
         members: true,
       },
@@ -41,24 +35,77 @@ export class PrestamosService {
     }
 
     // Check if member exists and belongs to the junta
-    const isMember = junta.members.some((member) => member.userId === memberId);
+    const isMember = junta.members.some(
+      (member) => member.userId === data.memberId,
+    );
     if (!isMember) {
       throw new ForbiddenException('User is not a member of this junta');
     }
 
-    return this.prisma.prestamo.create({
-      data: {
-        amount,
-        description,
-        juntaId,
-        memberId,
-        status: 'PENDING',
-      },
-      include: {
-        member: true,
-        junta: true,
-        pagos: true,
-      },
+    // Calculate remaining amount (initially same as requested amount)
+    const amount = parseFloat(data.amount);
+    const monthly_interest = parseFloat(data.monthly_interest);
+
+    // Create prestamo and capital movement in a transaction
+    return this.prisma.$transaction(async (prisma) => {
+      // Create the prestamo
+      const prestamo = await prisma.prestamoNew.create({
+        data: {
+          amount,
+          monthly_interest,
+          number_of_installments: data.number_of_installments,
+          request_date: new Date(data.request_date),
+          remaining_amount: amount,
+          loan_type: data.loan_type,
+          payment_type: data.payment_type,
+          reason: data.reason,
+          guarantee_type: data.guarantee_type,
+          guarantee_detail: data.guarantee_detail,
+          form_purchased: data.form_purchased,
+          form_cost: 2.0,
+          loan_code: `${data.loan_type.toUpperCase()}-${Date.now()}`,
+          loan_number: 1, // This should be auto-incremented per junta
+          capital_at_time: junta.current_capital,
+          capital_snapshot: {
+            current_capital: junta.current_capital,
+            base_capital: junta.base_capital,
+            available_capital: junta.available_capital,
+          },
+          juntaId: data.juntaId,
+          memberId: data.memberId,
+          avalId: data.avalId,
+          status: 'PENDING',
+          affects_capital: true,
+        },
+        include: {
+          member: true,
+          junta: true,
+          pagos: true,
+        },
+      });
+
+      // Create capital movement
+      await prisma.capitalMovement.create({
+        data: {
+          amount,
+          type: 'prestamo',
+          direction: 'decrease',
+          description: `Préstamo ${data.loan_type} - ${prestamo.loan_code}`,
+          juntaId: data.juntaId,
+          prestamoId: prestamo.id,
+        },
+      });
+
+      // Update junta's capital
+      await prisma.junta.update({
+        where: { id: data.juntaId },
+        data: {
+          current_capital: { decrement: amount },
+          available_capital: { decrement: amount },
+        },
+      });
+
+      return prestamo;
     });
   }
 
@@ -69,7 +116,7 @@ export class PrestamosService {
     userRole: UserRole,
   ) {
     // Get the prestamo and check if it exists
-    const prestamo = await this.prisma.prestamo.findUnique({
+    const prestamo = await this.prisma.prestamoNew.findUnique({
       where: { id: prestamoId },
       include: {
         junta: true,
@@ -96,31 +143,69 @@ export class PrestamosService {
     const totalPaid =
       prestamo.pagos.reduce((sum, pago) => sum + pago.amount, 0) + amount;
 
-    // Create the pago
-    const pago = await this.prisma.pagoPrestamo.create({
-      data: {
-        amount,
-        prestamoId,
-      },
-      include: {
-        prestamo: {
-          include: {
-            member: true,
-            junta: true,
+    // Create pago and update capital in a transaction
+    return this.prisma.$transaction(async (prisma) => {
+      // Create the pago
+      const pago = await prisma.pagoPrestamoNew.create({
+        data: {
+          amount,
+          prestamoId,
+          affects_capital: true,
+        },
+        include: {
+          prestamo: {
+            include: {
+              member: true,
+              junta: true,
+            },
           },
         },
-      },
-    });
-
-    // Update prestamo status if fully paid
-    if (totalPaid >= prestamo.amount) {
-      await this.prisma.prestamo.update({
-        where: { id: prestamoId },
-        data: { status: 'PAID' },
       });
-    }
 
-    return pago;
+      // Create capital movement
+      await prisma.capitalMovement.create({
+        data: {
+          amount,
+          type: 'pago',
+          direction: 'increase',
+          description: `Pago de préstamo ${prestamo.loan_code}`,
+          juntaId: prestamo.juntaId,
+          prestamoId: prestamo.id,
+          pagoId: pago.id,
+        },
+      });
+
+      // Update junta's capital
+      await prisma.junta.update({
+        where: { id: prestamo.juntaId },
+        data: {
+          current_capital: { increment: amount },
+          available_capital: { increment: amount },
+        },
+      });
+
+      // Update prestamo status if fully paid
+      if (totalPaid >= prestamo.amount) {
+        await prisma.prestamoNew.update({
+          where: { id: prestamoId },
+          data: {
+            status: 'PAID',
+            paid: true,
+            remaining_amount: 0,
+          },
+        });
+      } else {
+        // Update remaining amount
+        await prisma.prestamoNew.update({
+          where: { id: prestamoId },
+          data: {
+            remaining_amount: prestamo.amount - totalPaid,
+          },
+        });
+      }
+
+      return pago;
+    });
   }
 
   async findByJunta(juntaId: string, userId: string, userRole: UserRole) {
@@ -145,7 +230,7 @@ export class PrestamosService {
       throw new ForbiddenException('You do not have access to this junta');
     }
 
-    return this.prisma.prestamo.findMany({
+    return this.prisma.prestamoNew.findMany({
       where: { juntaId },
       include: {
         member: true,
@@ -161,7 +246,7 @@ export class PrestamosService {
   async findByMember(memberId: string, userId: string, userRole: UserRole) {
     // Admin can see all prestamos
     if (userRole === 'ADMIN') {
-      return this.prisma.prestamo.findMany({
+      return this.prisma.prestamoNew.findMany({
         where: { memberId },
         include: {
           member: true,
@@ -179,7 +264,7 @@ export class PrestamosService {
     }
 
     // Get prestamos where user is either the member or the facilitator of the junta
-    return this.prisma.prestamo.findMany({
+    return this.prisma.prestamoNew.findMany({
       where: {
         memberId,
         OR: [{ junta: { createdById: userId } }, { memberId: userId }],
@@ -203,7 +288,7 @@ export class PrestamosService {
     // Then get all pagos for these prestamos
     const prestamoIds = prestamos.map((prestamo) => prestamo.id);
 
-    return this.prisma.pagoPrestamo.findMany({
+    return this.prisma.pagoPrestamoNew.findMany({
       where: {
         prestamoId: {
           in: prestamoIds,
@@ -246,7 +331,7 @@ export class PrestamosService {
     }
 
     // Get all prestamos for the junta
-    const prestamos = await this.prisma.prestamo.findMany({
+    const prestamos = await this.prisma.prestamoNew.findMany({
       where: { juntaId },
       select: { id: true },
     });
@@ -254,7 +339,7 @@ export class PrestamosService {
     const prestamoIds = prestamos.map((prestamo) => prestamo.id);
 
     // Get all pagos for these prestamos
-    return this.prisma.pagoPrestamo.findMany({
+    return this.prisma.pagoPrestamoNew.findMany({
       where: {
         prestamoId: {
           in: prestamoIds,
@@ -275,7 +360,7 @@ export class PrestamosService {
   }
 
   async findOne(id: string, userId: string, userRole: UserRole) {
-    const prestamo = await this.prisma.prestamo.findUnique({
+    const prestamo = await this.prisma.prestamoNew.findUnique({
       where: { id },
       include: {
         member: true,
@@ -324,7 +409,7 @@ export class PrestamosService {
       );
     }
 
-    return this.prisma.prestamo.update({
+    return this.prisma.prestamoNew.update({
       where: { id },
       data,
       include: {
@@ -350,12 +435,12 @@ export class PrestamosService {
     }
 
     // Delete all pagos first
-    await this.prisma.pagoPrestamo.deleteMany({
+    await this.prisma.pagoPrestamoNew.deleteMany({
       where: { prestamoId: id },
     });
 
     // Then delete the prestamo
-    await this.prisma.prestamo.delete({
+    await this.prisma.prestamoNew.delete({
       where: { id },
     });
 

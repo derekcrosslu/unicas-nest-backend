@@ -98,18 +98,46 @@ export class AccionesService {
       throw new ForbiddenException('User is not a member of this junta');
     }
 
-    return this.prisma.accion.create({
-      data: {
-        type,
-        amount,
-        description,
-        juntaId,
-        memberId,
-      },
-      include: {
-        member: true,
-        junta: true,
-      },
+    // Create accion and capital movement in a transaction
+    return this.prisma.$transaction(async (prisma) => {
+      const accion = await prisma.accion.create({
+        data: {
+          type,
+          amount,
+          description,
+          juntaId,
+          memberId,
+          affects_capital: true,
+        },
+        include: {
+          member: true,
+          junta: true,
+        },
+      });
+
+      // Create capital movement
+      await prisma.capitalMovement.create({
+        data: {
+          amount,
+          type: 'accion',
+          direction: 'ingreso',
+          description: description || `Acción de tipo ${type}`,
+          juntaId,
+          accionId: accion.id,
+        },
+      });
+
+      // Update junta's capital
+      await prisma.junta.update({
+        where: { id: juntaId },
+        data: {
+          current_capital: { increment: amount },
+          base_capital: { increment: amount },
+          available_capital: { increment: amount },
+        },
+      });
+
+      return accion;
     });
   }
 
@@ -196,6 +224,46 @@ export class AccionesService {
       );
     }
 
+    // If amount is being updated, we need to update capital movement and junta capital
+    if (data.amount !== undefined && data.amount !== accion.amount) {
+      return this.prisma.$transaction(async (prisma) => {
+        const amountDiff = data.amount - accion.amount;
+
+        // Update accion
+        const updatedAccion = await prisma.accion.update({
+          where: { id },
+          data,
+          include: {
+            member: true,
+            junta: true,
+          },
+        });
+
+        // Update capital movement
+        await prisma.capitalMovement.updateMany({
+          where: { accionId: id },
+          data: {
+            amount: data.amount,
+            description:
+              data.description || `Acción de tipo ${data.type || accion.type}`,
+          },
+        });
+
+        // Update junta's capital
+        await prisma.junta.update({
+          where: { id: accion.juntaId },
+          data: {
+            current_capital: { increment: amountDiff },
+            base_capital: { increment: amountDiff },
+            available_capital: { increment: amountDiff },
+          },
+        });
+
+        return updatedAccion;
+      });
+    }
+
+    // If amount is not being updated, just update the accion
     return this.prisma.accion.update({
       where: { id },
       data,
@@ -220,8 +288,27 @@ export class AccionesService {
       );
     }
 
-    await this.prisma.accion.delete({
-      where: { id },
+    // Delete accion, capital movement, and update junta capital in a transaction
+    await this.prisma.$transaction(async (prisma) => {
+      // Delete capital movement
+      await prisma.capitalMovement.deleteMany({
+        where: { accionId: id },
+      });
+
+      // Update junta's capital
+      await prisma.junta.update({
+        where: { id: accion.juntaId },
+        data: {
+          current_capital: { decrement: accion.amount },
+          base_capital: { decrement: accion.amount },
+          available_capital: { decrement: accion.amount },
+        },
+      });
+
+      // Delete accion
+      await prisma.accion.delete({
+        where: { id },
+      });
     });
 
     return { message: 'Accion deleted successfully' };
