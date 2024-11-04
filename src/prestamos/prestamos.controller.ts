@@ -11,16 +11,16 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrestamosService } from './prestamos.service';
-import { PrestamosSyncService } from './prestamos-sync.service';
-import { PrestamosTestService } from './prestamos-test.service';
-import { PrestamosMonitorService } from './prestamos-monitor.service';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { UserRole } from '../types/user-role';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { PrestamoResponse } from './types/prestamo.types';
 import {
-  MigrationStats,
-  DataConsistencyStats,
-} from './types/prestamos-monitor.types';
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+  ApiParam,
+} from '@nestjs/swagger';
 import { CreatePrestamoDto } from './dto/create-prestamo.dto';
 
 interface RequestWithUser extends Request {
@@ -35,15 +35,11 @@ interface RequestWithUser extends Request {
 @ApiBearerAuth()
 @UseGuards(RolesGuard)
 export class PrestamosController {
-  constructor(
-    private readonly prestamosService: PrestamosService,
-    private readonly prestamosSyncService: PrestamosSyncService,
-    private readonly prestamosTestService: PrestamosTestService,
-    private readonly prestamosMonitorService: PrestamosMonitorService,
-  ) {}
+  constructor(private readonly prestamosService: PrestamosService) {}
 
   @Get('junta/:juntaId')
   @ApiOperation({ summary: 'Get all prestamos for a junta' })
+  @ApiParam({ name: 'juntaId', type: 'string' })
   async findByJunta(
     @Param('juntaId') juntaId: string,
     @Request() req: RequestWithUser,
@@ -57,15 +53,20 @@ export class PrestamosController {
 
   @Get('junta/:juntaId/pagos')
   @ApiOperation({ summary: 'Get all pagos for a junta' })
+  @ApiParam({ name: 'juntaId', type: 'string' })
   async findPagosByJunta(
     @Param('juntaId') juntaId: string,
     @Request() req: RequestWithUser,
   ) {
-    return this.prestamosService.findPagosByJunta(
+    const pagos = await this.prestamosService.findPagosByJunta(
       juntaId,
       req.user.id,
       req.user.role,
     );
+    if (!pagos) {
+      return { message: 'No hay pagos para esta junta', data: [] };
+    }
+    return pagos;
   }
 
   @Post()
@@ -73,17 +74,28 @@ export class PrestamosController {
   async create(
     @Body() data: CreatePrestamoDto,
     @Request() req: RequestWithUser,
-  ) {
+  ): Promise<PrestamoResponse> {
     return this.prestamosService.create(data, req.user.id, req.user.role);
   }
 
   @Post(':id/pagos')
   @ApiOperation({ summary: 'Create a new pago for a prestamo' })
+  @ApiParam({ name: 'id', type: 'string' })
   async createPago(
     @Param('id') id: string,
     @Body() data: { amount: number },
     @Request() req: RequestWithUser,
   ) {
+    console.log('data: ', data);
+    // First validate the payment
+    await this.prestamosService.validatePayment(
+      id,
+      data.amount,
+      req.user.id,
+      req.user.role,
+    );
+
+    // If validation passes, create the payment
     return this.prestamosService.createPago(
       id,
       data.amount,
@@ -94,19 +106,86 @@ export class PrestamosController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a specific prestamo' })
+  @ApiParam({ name: 'id', type: 'string' })
   async findOne(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.prestamosService.findOne(id, req.user.id, req.user.role);
   }
 
+  @Get(':id/remaining-payments')
+  @ApiOperation({ summary: 'Get remaining payments schedule for a loan' })
+  @ApiParam({ name: 'id', type: 'string' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Returns the remaining payment schedule and related information',
+    schema: {
+      type: 'object',
+      properties: {
+        totalPaid: { type: 'number' },
+        remainingAmount: { type: 'number' },
+        remainingPayments: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              payment: { type: 'number' },
+              principal: { type: 'number' },
+              interest: { type: 'number' },
+              balance: { type: 'number' },
+            },
+          },
+        },
+        nextPaymentDue: {
+          type: 'object',
+          nullable: true,
+          properties: {
+            payment: { type: 'number' },
+            principal: { type: 'number' },
+            interest: { type: 'number' },
+            balance: { type: 'number' },
+          },
+        },
+        nextPaymentDate: { type: 'string', format: 'date-time' },
+        isOverdue: { type: 'boolean' },
+      },
+    },
+  })
+  async getRemainingPayments(
+    @Param('id') id: string,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.prestamosService.getRemainingPayments(
+      id,
+      req.user.id,
+      req.user.role,
+    );
+  }
+
+  @Get(':id/payment-history')
+  @ApiOperation({ summary: 'Get payment history for a loan' })
+  @ApiParam({ name: 'id', type: 'string' })
+  async getPaymentHistory(
+    @Param('id') id: string,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.prestamosService.getPaymentHistory(
+      id,
+      req.user.id,
+      req.user.role,
+    );
+  }
+
   @Put(':id')
   @ApiOperation({ summary: 'Update a prestamo' })
+  @ApiParam({ name: 'id', type: 'string' })
   async update(
     @Param('id') id: string,
     @Body()
     data: {
-      amount?: number;
-      description?: string;
       status?: string;
+      description?: string;
+      rejected?: boolean;
+      rejection_reason?: string;
     },
     @Request() req: RequestWithUser,
   ) {
@@ -115,12 +194,14 @@ export class PrestamosController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a prestamo' })
+  @ApiParam({ name: 'id', type: 'string' })
   async remove(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.prestamosService.remove(id, req.user.id, req.user.role);
   }
 
   @Get('member/:memberId')
   @ApiOperation({ summary: 'Get all prestamos for a member' })
+  @ApiParam({ name: 'memberId', type: 'string' })
   async findByMember(
     @Param('memberId') memberId: string,
     @Request() req: RequestWithUser,
@@ -132,99 +213,34 @@ export class PrestamosController {
     );
   }
 
-  // Migration management endpoints
-  @Post('migration/start')
-  @ApiOperation({ summary: 'Start migration of all prestamos to new schema' })
-  async startMigration(@Request() req: RequestWithUser) {
-    if (req.user.role !== 'ADMIN') {
-      throw new ForbiddenException('Only admins can perform migrations');
-    }
-    return this.prestamosSyncService.migrateAllPrestamos();
-  }
-
-  @Post('migration/single/:id')
-  @ApiOperation({ summary: 'Migrate a single prestamo to new schema' })
-  async migrateSingle(
-    @Param('id') id: string,
+  @Get('member/:memberId/pagos')
+  @ApiOperation({ summary: 'Get all pagos for a member' })
+  @ApiParam({ name: 'memberId', type: 'string' })
+  async findPagosByMember(
+    @Param('memberId') memberId: string,
     @Request() req: RequestWithUser,
   ) {
-    if (req.user.role !== 'ADMIN') {
-      throw new ForbiddenException('Only admins can perform migrations');
-    }
-    return this.prestamosSyncService.migratePrestamo(id);
+    return this.prestamosService.findPagosByMember(
+      memberId,
+      req.user.id,
+      req.user.role,
+    );
   }
 
-  @Get('migration/verify')
-  @ApiOperation({
-    summary: 'Verify data consistency between old and new schemas',
-  })
-  async verifyMigration(@Request() req: RequestWithUser) {
-    if (req.user.role !== 'ADMIN') {
-      throw new ForbiddenException('Only admins can verify migrations');
-    }
-    return this.prestamosSyncService.verifyDataConsistency();
-  }
-
-  @Post('migration/rollback/:id')
-  @ApiOperation({ summary: 'Rollback a migrated prestamo' })
-  async rollbackMigration(
+  @Get(':id/validate-payment')
+  @ApiOperation({ summary: 'Validate a payment amount before processing' })
+  @ApiParam({ name: 'id', type: 'string' })
+  async validatePayment(
     @Param('id') id: string,
+    @Body() data: { amount: number },
     @Request() req: RequestWithUser,
   ) {
-    if (req.user.role !== 'ADMIN') {
-      throw new ForbiddenException('Only admins can rollback migrations');
-    }
-    return this.prestamosSyncService.rollbackPrestamo(id);
-  }
-
-  // Monitoring endpoints
-  @Get('migration/progress')
-  @ApiOperation({ summary: 'Get current migration progress' })
-  async getMigrationProgress(
-    @Request() req: RequestWithUser,
-  ): Promise<MigrationStats> {
-    if (req.user.role !== 'ADMIN') {
-      throw new ForbiddenException('Only admins can view migration progress');
-    }
-    return this.prestamosMonitorService.getMigrationProgress();
-  }
-
-  @Get('migration/consistency')
-  @ApiOperation({ summary: 'Check data consistency status' })
-  async getConsistencyStatus(
-    @Request() req: RequestWithUser,
-  ): Promise<DataConsistencyStats> {
-    if (req.user.role !== 'ADMIN') {
-      throw new ForbiddenException('Only admins can check consistency status');
-    }
-    return this.prestamosMonitorService.checkDataConsistency();
-  }
-
-  @Get('migration/metrics')
-  @ApiOperation({ summary: 'Get migration performance metrics' })
-  async getPerformanceMetrics(@Request() req: RequestWithUser) {
-    if (req.user.role !== 'ADMIN') {
-      throw new ForbiddenException('Only admins can view performance metrics');
-    }
-    return this.prestamosMonitorService.getPerformanceMetrics();
-  }
-
-  // Test data management endpoints
-  @Post('test/create-data')
-  @ApiOperation({ summary: 'Create test data for migration testing' })
-  async createTestData(@Request() req: RequestWithUser) {
-    if (req.user.role !== 'ADMIN') {
-      throw new ForbiddenException('Only admins can create test data');
-    }
-    return this.prestamosTestService.createTestData();
-  }
-
-  @Post('test/cleanup')
-  @ApiOperation({ summary: 'Clean up test data' })
-  async cleanupTestData(@Request() req: RequestWithUser) {
-    if (req.user.role !== 'ADMIN') {
-      throw new ForbiddenException('Only admins can clean up test data');
-    }
-    return this.prestamosTestService.cleanupTestData();
+    await this.prestamosService.validatePayment(
+      id,
+      data.amount,
+      req.user.id,
+      req.user.role,
+    );
+    return { valid: true };
   }
 }

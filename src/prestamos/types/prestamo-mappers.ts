@@ -1,82 +1,88 @@
-import { PrestamoNew } from '@prisma/client';
-import { GuaranteeType, PaymentType, LoanType } from './prestamo.types';
+import {
+  LoanType,
+  PrestamoStatus,
+  PaymentType,
+  GuaranteeType,
+} from './prestamo.types';
 
 export interface PrestamoMappingInput {
-  loan_number: number;
-  loan_code: string;
-  avalId?: string;
+  id: string;
   amount: number;
-  monthly_interest: number;
-  number_of_installments: number;
-  payment_type: PaymentType;
-  reason: string;
-  guarantee_type: GuaranteeType;
-  guarantee_detail: string;
-  form_purchased: boolean;
+  description?: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
   juntaId: string;
   memberId: string;
+  pagos: Array<{
+    id: string;
+    amount: number;
+    date: Date;
+  }>;
 }
 
 export interface PrestamoMappingOutput {
-  loan_number: number;
-  loan_code: string;
-  aval?: {
-    connect: {
-      id: string;
-    };
-  };
+  id: string;
   amount: number;
+  description?: string;
+  status: PrestamoStatus;
+  request_date: Date;
   monthly_interest: number;
   number_of_installments: number;
-  payment_type: string;
-  reason: string;
-  guarantee_type: string;
-  guarantee_detail: string;
-  form_purchased: boolean;
+  payment_type: PaymentType;
   loan_type: LoanType;
-  junta: {
-    connect: {
-      id: string;
-    };
-  };
-  member: {
-    connect: {
-      id: string;
-    };
-  };
+  remaining_amount: number;
+  loan_code: string;
+  loan_number: number;
+  guarantee_type: GuaranteeType;
+  guarantee_detail?: string;
+  reason: string;
+  approved: boolean;
+  rejected: boolean;
+  rejection_reason?: string;
+  paid: boolean;
+  affects_capital: boolean;
+  form_purchased: boolean;
+  form_cost: number;
+  capital_at_time: number;
+  createdAt: Date;
+  updatedAt: Date;
+  juntaId: string;
+  memberId: string;
+  avalId?: string;
 }
 
-export function mapPrestamoToNewSchema(
+export function mapPrestamo(
   input: PrestamoMappingInput,
 ): PrestamoMappingOutput {
+  const totalPaid = input.pagos.reduce((sum, pago) => sum + pago.amount, 0);
+  const remaining = input.amount - totalPaid;
+
   return {
-    loan_number: input.loan_number,
-    loan_code: input.loan_code,
-    ...(input.avalId && {
-      aval: {
-        connect: {
-          id: input.avalId,
-        },
-      },
-    }),
+    id: input.id,
     amount: input.amount,
-    monthly_interest: input.monthly_interest,
-    number_of_installments: input.number_of_installments,
-    payment_type: input.payment_type,
-    reason: input.reason,
-    guarantee_type: input.guarantee_type,
-    guarantee_detail: input.guarantee_detail,
-    form_purchased: input.form_purchased,
-    loan_type: 'CUOTA_REBATIR', // Default to personal type for migrated loans
-    junta: {
-      connect: {
-        id: input.juntaId,
-      },
-    },
-    member: {
-      connect: {
-        id: input.memberId,
-      },
-    },
+    description: input.description,
+    status: input.status as PrestamoStatus,
+    request_date: input.createdAt,
+    monthly_interest: 2.5, // Default interest rate for migrated loans
+    number_of_installments: 12, // Default installments for migrated loans
+    payment_type: PaymentType.MENSUAL,
+    loan_type: LoanType.CUOTA_REBATIR, // Default to personal type for migrated loans
+    remaining_amount: remaining,
+    loan_code: `MIGRATED-${input.id}`,
+    loan_number: 1,
+    guarantee_type: GuaranteeType.AVAL,
+    reason: 'Migrated loan',
+    approved: true,
+    rejected: false,
+    paid: remaining <= 0,
+    affects_capital: true,
+    form_purchased: true,
+    form_cost: 2.0,
+    capital_at_time: 0,
+    createdAt: input.createdAt,
+    updatedAt: input.updatedAt,
+    juntaId: input.juntaId,
+    memberId: input.memberId,
   };
 }

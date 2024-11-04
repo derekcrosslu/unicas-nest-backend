@@ -1,30 +1,292 @@
 import {
   Injectable,
   NotFoundException,
+  BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { LoanCalculatorService } from './loan-calculator.service';
 import { UserRole } from '../types/user-role';
-import { CreatePrestamoDto } from './dto/create-prestamo.dto';
+import {
+  CreatePrestamoDto,
+  ProcessPaymentDTO,
+  LoanType,
+  PaymentType,
+  GuaranteeType,
+  CapitalSnapshot,
+  PrestamoNewSelect,
+  JuntaSelect,
+  UpdateOps,
+  serializeCapitalSnapshot,
+  parseCapitalSnapshot,
+  PrestamoOrderBy,
+  PrestamoResponse,
+  PaymentScheduleItem,
+  PaymentScheduleResponse,
+} from './types/prestamo.types';
+
+const PaymentScheduleStatus = {
+  PENDING: 'PENDING',
+  PAID: 'PAID',
+  PARTIAL: 'PARTIAL',
+  OVERDUE: 'OVERDUE',
+} as const;
+
+type PaymentScheduleStatusType =
+  (typeof PaymentScheduleStatus)[keyof typeof PaymentScheduleStatus];
+
+interface ExtendedCapitalSnapshot extends CapitalSnapshot {
+  payment_schedule: PaymentScheduleItem[];
+}
 
 @Injectable()
 export class PrestamosService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private loanCalculator: LoanCalculatorService,
+  ) {}
 
-  // Add this method to your PrestamosService class
+  private calculatePaymentSchedule(
+    amount: number,
+    monthly_interest: number,
+    number_of_installments: number,
+    start_date: Date,
+    payment_type: PaymentType,
+    loan_type: LoanType,
+  ): PaymentScheduleItem[] {
+    const calculation = this.loanCalculator.calculateLoan(
+      amount,
+      monthly_interest,
+      number_of_installments,
+      loan_type,
+      payment_type,
+    );
 
+    let intervalDays: number;
+    switch (payment_type) {
+      case 'SEMANAL':
+        intervalDays = 7;
+        break;
+      case 'QUINCENAL':
+        intervalDays = 15;
+        break;
+      case 'MENSUAL':
+      default:
+        intervalDays = 30;
+        break;
+    }
+
+    return (
+      calculation.amortizationSchedule?.map((row, index) => {
+        const due_date = new Date(start_date);
+        due_date.setDate(due_date.getDate() + intervalDays * (index + 1));
+
+        return {
+          due_date,
+          expected_amount: row.payment,
+          principal: row.principal,
+          interest: row.interest,
+          installment_number: index + 1,
+          status: PaymentScheduleStatus.PENDING,
+        };
+      }) || []
+    );
+  }
+
+  async create(
+    data: CreatePrestamoDto,
+    userId: string,
+    userRole: UserRole,
+  ): Promise<PrestamoResponse> {
+    const junta = await this.prisma.junta.findUnique({
+      where: { id: data.juntaId },
+      include: { members: true },
+    });
+
+    if (!junta) {
+      throw new NotFoundException('Junta not found');
+    }
+
+    if (
+      userRole !== 'ADMIN' &&
+      (userRole !== 'FACILITATOR' || junta.createdById !== userId)
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to create loans in this junta',
+      );
+    }
+
+    const isMember = junta.members.some(
+      (member) => member.userId === data.memberId,
+    );
+    if (!isMember) {
+      throw new ForbiddenException('User is not a member of this junta');
+    }
+
+    const amount = parseFloat(data.amount);
+    const monthly_interest = parseFloat(data.monthly_interest);
+
+    if (junta.available_capital < amount) {
+      throw new BadRequestException(
+        `Insufficient funds. Available: ${junta.available_capital}, Requested: ${amount}`,
+      );
+    }
+
+    const start_date = new Date(data.request_date);
+    const payment_schedule = this.calculatePaymentSchedule(
+      amount,
+      monthly_interest,
+      data.number_of_installments,
+      start_date,
+      data.payment_type,
+      data.loan_type,
+    );
+
+    const calculation = this.loanCalculator.calculateLoan(
+      amount,
+      monthly_interest,
+      data.number_of_installments,
+      data.loan_type,
+      data.payment_type,
+    );
+
+    const capitalSnapshot: ExtendedCapitalSnapshot = {
+      current_capital: junta.current_capital,
+      base_capital: junta.base_capital,
+      available_capital: junta.available_capital - amount,
+      calculation,
+      payment_schedule,
+    };
+
+    const latestLoan = await this.prisma.prestamoNew.findFirst({
+      where: { juntaId: data.juntaId },
+      orderBy: { loan_number: 'desc' },
+      select: { loan_number: true },
+    });
+
+    const nextLoanNumber = (latestLoan?.loan_number || 0) + 1;
+
+    return this.prisma.$transaction(async (prisma) => {
+      const prestamo = await prisma.prestamoNew.create({
+        data: {
+          amount,
+          monthly_interest,
+          number_of_installments: data.number_of_installments,
+          request_date: start_date,
+          remaining_amount: amount,
+          loan_type: data.loan_type,
+          payment_type: data.payment_type,
+          reason: data.reason,
+          guarantee_type: data.guarantee_type as GuaranteeType,
+          guarantee_detail: data.guarantee_detail,
+          form_purchased: data.form_purchased,
+          form_cost: 2.0,
+          loan_code: `${data.loan_type.toUpperCase()}-${Date.now()}`,
+          loan_number: nextLoanNumber,
+          capital_at_time: junta.current_capital,
+          capital_snapshot: serializeCapitalSnapshot(capitalSnapshot),
+          juntaId: data.juntaId,
+          memberId: data.memberId,
+          avalId: data.avalId,
+          status: 'PENDING',
+          paymentSchedule: {
+            createMany: {
+              data: payment_schedule.map((schedule) => ({
+                due_date: schedule.due_date,
+                expected_amount: schedule.expected_amount,
+                principal: schedule.principal,
+                interest: schedule.interest,
+                installment_number: schedule.installment_number,
+                status: schedule.status,
+              })),
+            },
+          },
+          affects_capital: true,
+        },
+      });
+
+      // Create payment schedule entries
+      await prisma.paymentSchedule.createMany({
+        data: payment_schedule.map((schedule) => ({
+          prestamoId: prestamo.id,
+          due_date: schedule.due_date,
+          expected_amount: schedule.expected_amount,
+          principal: schedule.principal,
+          interest: schedule.interest,
+          installment_number: schedule.installment_number,
+          status: schedule.status as PaymentScheduleStatusType,
+        })),
+      });
+
+      // Create capital movement
+      await prisma.capitalMovement.create({
+        data: {
+          amount,
+          type: 'PRESTAMO',
+          direction: 'DECREASE',
+          description: `Préstamo ${data.loan_type} - ${prestamo.loan_code}`,
+          juntaId: data.juntaId,
+          prestamoId: prestamo.id,
+        },
+      });
+
+      // Update junta's capital
+      await prisma.junta.update({
+        where: { id: data.juntaId },
+        data: {
+          current_capital: { decrement: amount },
+          available_capital: { decrement: amount },
+        },
+      });
+
+      // Return complete prestamo data
+      const prestamoWithDetails = await this.prisma.prestamoNew.findUnique({
+        where: { id: prestamo.id },
+        include: {
+          member: true,
+          junta: true,
+          pagos: true,
+          paymentSchedule: {
+            orderBy: {
+              installment_number: 'asc',
+            },
+          },
+        },
+      });
+      console.log('prestamoWithDetails: ', prestamoWithDetails);
+      // const paymentSchedule = prestamoWithDetails.paymentSchedule.map(
+      //   (schedule) => ({
+      //     ...schedule,
+      //     status: schedule.status as PaymentScheduleStatusType,
+      //   }),
+      // );
+      return {
+        ...prestamoWithDetails,
+        // paymentSchedule,
+        guarantee_type: '' as GuaranteeType,
+        // capital_snapshot: parseCapitalSnapshot(
+        //   prestamoWithDetails.capital_snapshot as unknown as string,
+        // ),
+        capital_snapshot: {} as CapitalSnapshot,
+      };
+    });
+  }
   async createPago(
     prestamoId: string,
     amount: number,
     userId: string,
     userRole: UserRole,
   ) {
-    // Get the prestamo and check if it exists
     const prestamo = await this.prisma.prestamoNew.findUnique({
       where: { id: prestamoId },
       include: {
         junta: true,
         pagos: true,
+        paymentSchedule: {
+          orderBy: {
+            installment_number: 'asc',
+          },
+        },
       },
     });
 
@@ -32,24 +294,21 @@ export class PrestamosService {
       throw new NotFoundException('Prestamo not found');
     }
 
-    // Check if user has permission to create pagos
     const hasPermission =
       userRole === 'ADMIN' ||
       (userRole === 'FACILITATOR' && prestamo.junta.createdById === userId);
 
     if (!hasPermission) {
       throw new ForbiddenException(
-        'You do not have permission to create pagos for this prestamo',
+        'You do not have permission to create payments for this loan',
       );
     }
 
-    // Calculate total paid amount including this new payment
     const totalPaid =
       prestamo.pagos.reduce((sum, pago) => sum + pago.amount, 0) + amount;
 
-    // Create pago and update capital in a transaction
     return this.prisma.$transaction(async (prisma) => {
-      // Create the pago
+      // Create the payment
       const pago = await prisma.pagoPrestamoNew.create({
         data: {
           amount,
@@ -66,12 +325,20 @@ export class PrestamosService {
         },
       });
 
+      // Update payment schedule status
+      await this.updatePaymentScheduleStatuses(
+        prisma,
+        prestamo,
+        amount,
+        totalPaid,
+      );
+
       // Create capital movement
       await prisma.capitalMovement.create({
         data: {
           amount,
-          type: 'pago',
-          direction: 'increase',
+          type: 'PAGO',
+          direction: 'INCREASE',
           description: `Pago de préstamo ${prestamo.loan_code}`,
           juntaId: prestamo.juntaId,
           prestamoId: prestamo.id,
@@ -88,7 +355,7 @@ export class PrestamosService {
         },
       });
 
-      // Update prestamo status if fully paid
+      // Update loan status
       if (totalPaid >= prestamo.amount) {
         await prisma.prestamoNew.update({
           where: { id: prestamoId },
@@ -96,16 +363,13 @@ export class PrestamosService {
             status: 'PAID',
             paid: true,
             remaining_amount: 0,
-            number_of_installments: 0,
           },
         });
       } else {
-        // Update remaining amount
         await prisma.prestamoNew.update({
           where: { id: prestamoId },
           data: {
             remaining_amount: prestamo.amount - totalPaid,
-            // Optionally update remaining_installments based on your business logic
             status: 'PARTIAL',
           },
         });
@@ -115,116 +379,217 @@ export class PrestamosService {
     });
   }
 
-  async create(data: CreatePrestamoDto, userId: string, userRole: UserRole) {
-    // Check if user has permission to create prestamos
-    const junta = await this.prisma.junta.findUnique({
-      where: { id: data.juntaId },
+  private async updatePaymentScheduleStatuses(
+    prisma: any,
+    prestamo: any,
+    currentPaymentAmount: number,
+    totalPaidAmount: number,
+  ) {
+    let remainingPayment = currentPaymentAmount;
+    const today = new Date();
+
+    for (const scheduleItem of prestamo.paymentSchedule) {
+      if (scheduleItem.status === PaymentScheduleStatus.PAID) {
+        continue;
+      }
+
+      if (remainingPayment >= scheduleItem.expected_amount) {
+        // Full payment for this installment
+        await prisma.paymentSchedule.update({
+          where: { id: scheduleItem.id },
+          data: { status: PaymentScheduleStatus.PAID },
+        });
+        remainingPayment -= scheduleItem.expected_amount;
+      } else if (remainingPayment > 0) {
+        // Partial payment
+        await prisma.paymentSchedule.update({
+          where: { id: scheduleItem.id },
+          data: { status: PaymentScheduleStatus.PARTIAL },
+        });
+        remainingPayment = 0;
+      } else if (scheduleItem.due_date < today) {
+        // Past due date without payment
+        await prisma.paymentSchedule.update({
+          where: { id: scheduleItem.id },
+          data: { status: PaymentScheduleStatus.OVERDUE },
+        });
+      }
+    }
+  }
+
+  async validatePayment(
+    prestamoId: string,
+    amount: number,
+    userId: string,
+    userRole: UserRole,
+  ) {
+    const prestamo = await this.prisma.prestamoNew.findUnique({
+      where: { id: prestamoId },
       include: {
-        members: true,
+        paymentSchedule: {
+          where: {
+            status: {
+              in: [
+                PaymentScheduleStatus.PENDING,
+                PaymentScheduleStatus.PARTIAL,
+              ],
+            },
+          },
+          orderBy: {
+            installment_number: 'asc',
+          },
+          take: 1,
+        },
       },
     });
 
-    if (!junta) {
-      throw new NotFoundException('Junta not found');
+    if (!prestamo) {
+      throw new NotFoundException('Prestamo not found');
     }
 
-    const hasPermission =
-      userRole === 'ADMIN' ||
-      (userRole === 'FACILITATOR' && junta.createdById === userId);
+    if (amount <= 0) {
+      throw new BadRequestException('Payment amount must be greater than zero');
+    }
 
-    if (!hasPermission) {
-      throw new ForbiddenException(
-        'You do not have permission to create prestamos in this junta',
+    if (amount > prestamo.remaining_amount) {
+      throw new BadRequestException(
+        `Payment amount (${amount}) exceeds remaining balance (${prestamo.remaining_amount})`,
       );
     }
 
-    // Check if member exists and belongs to the junta
-    const isMember = junta.members.some(
-      (member) => member.userId === data.memberId,
-    );
-    if (!isMember) {
-      throw new ForbiddenException('User is not a member of this junta');
+    const nextPayment = prestamo.paymentSchedule[0];
+    if (!nextPayment) {
+      throw new BadRequestException('No pending payments found');
     }
 
-    // Calculate remaining amount (initially same as requested amount)
-    const amount = parseFloat(data.amount);
-    const monthly_interest = parseFloat(data.monthly_interest);
+    // Validate based on loan type
+    switch (prestamo.loan_type) {
+      case 'CUOTA_FIJA':
+        if (Math.abs(amount - nextPayment.expected_amount) > 0.01) {
+          throw new BadRequestException(
+            `Fixed payment loans require exact payment amount: ${nextPayment.expected_amount}`,
+          );
+        }
+        break;
 
-    // Get the latest loan number for this junta
-    const latestLoan = await this.prisma.prestamoNew.findFirst({
-      where: { juntaId: data.juntaId },
-      orderBy: { loan_number: 'desc' },
-      select: { loan_number: true },
-    });
+      case 'CUOTA_REBATIR':
+        if (amount < nextPayment.interest) {
+          throw new BadRequestException(
+            `Payment must cover at least the interest amount: ${nextPayment.interest}`,
+          );
+        }
+        break;
 
-    // Increment the loan number or start at 1 if no loans exist
-    const nextLoanNumber = latestLoan ? latestLoan.loan_number + 1 : 1;
+      case 'CUOTA_VENCIMIENTO':
+        if (amount !== prestamo.remaining_amount) {
+          throw new BadRequestException(
+            'Payment at maturity requires full remaining amount',
+          );
+        }
+        break;
 
-    // Create prestamo and capital movement in a transaction
-    return this.prisma.$transaction(async (prisma) => {
-      // Create the prestamo
-      const prestamo = await prisma.prestamoNew.create({
-        data: {
-          amount,
-          monthly_interest,
-          number_of_installments: data.number_of_installments,
-          request_date: new Date(data.request_date),
-          remaining_amount: amount,
-          loan_type: data.loan_type,
-          payment_type: data.payment_type,
-          reason: data.reason,
-          guarantee_type: data.guarantee_type,
-          guarantee_detail: data.guarantee_detail,
-          form_purchased: data.form_purchased,
-          form_cost: 2.0,
-          loan_code: `${data.loan_type.toUpperCase()}-${Date.now()}`,
-          loan_number: nextLoanNumber, // Use the incremented loan number
-          capital_at_time: junta.current_capital,
-          capital_snapshot: {
-            current_capital: junta.current_capital,
-            base_capital: junta.base_capital,
-            available_capital: junta.available_capital,
+      case 'CUOTA_VARIABLE':
+        if (amount !== nextPayment.expected_amount) {
+          throw new BadRequestException(
+            `Payment must match scheduled amount: ${nextPayment.expected_amount}`,
+          );
+        }
+        break;
+    }
+
+    return true;
+  }
+
+  async getRemainingPayments(id: string, userId: string, userRole: UserRole) {
+    const prestamo = await this.prisma.prestamoNew.findUnique({
+      where: { id },
+      include: {
+        paymentSchedule: {
+          orderBy: {
+            installment_number: 'asc',
           },
-          juntaId: data.juntaId,
-          memberId: data.memberId,
-          avalId: data.avalId,
-          status: 'PENDING',
-          affects_capital: true,
+          where: {
+            status: {
+              in: [
+                PaymentScheduleStatus.PENDING,
+                PaymentScheduleStatus.PARTIAL,
+              ],
+            },
+          },
         },
-        include: {
-          member: true,
-          junta: true,
-          pagos: true,
+        pagos: {
+          orderBy: {
+            date: 'desc',
+          },
         },
-      });
-
-      // Create capital movement
-      await prisma.capitalMovement.create({
-        data: {
-          amount,
-          type: 'prestamo',
-          direction: 'decrease',
-          description: `Préstamo ${data.loan_type} - ${prestamo.loan_code}`,
-          juntaId: data.juntaId,
-          prestamoId: prestamo.id,
-        },
-      });
-
-      // Update junta's capital
-      await prisma.junta.update({
-        where: { id: data.juntaId },
-        data: {
-          current_capital: { decrement: amount },
-          available_capital: { decrement: amount },
-        },
-      });
-
-      return prestamo;
+      },
     });
+
+    if (!prestamo) {
+      throw new NotFoundException('Loan not found');
+    }
+
+    const totalPaid = prestamo.pagos.reduce(
+      (sum, pago) => sum + pago.amount,
+      0,
+    );
+    const nextPaymentDue = prestamo.paymentSchedule[0];
+    const nextPaymentDate = nextPaymentDue?.due_date;
+
+    return {
+      totalPaid,
+      remainingAmount: prestamo.remaining_amount,
+      remainingPayments: prestamo.paymentSchedule,
+      nextPaymentDue: nextPaymentDue || null,
+      nextPaymentDate,
+      isOverdue:
+        nextPaymentDate &&
+        nextPaymentDate < new Date() &&
+        prestamo.remaining_amount > 0,
+    };
+  }
+  async findOne(id: string, userId: string, userRole: UserRole) {
+    const prestamo = await this.prisma.prestamoNew.findUnique({
+      where: { id },
+      include: {
+        member: true,
+        junta: true,
+        pagos: {
+          orderBy: {
+            date: 'desc',
+          },
+        },
+        paymentSchedule: {
+          orderBy: {
+            installment_number: 'asc',
+          },
+        },
+        aval: {
+          select: {
+            id: true,
+            full_name: true,
+          },
+        },
+      },
+    });
+
+    if (!prestamo) {
+      throw new NotFoundException('Loan not found');
+    }
+
+    const hasAccess =
+      userRole === 'ADMIN' ||
+      (userRole === 'FACILITATOR' && prestamo.junta.createdById === userId) ||
+      prestamo.memberId === userId;
+
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this loan');
+    }
+
+    return prestamo;
   }
 
   async findByJunta(juntaId: string, userId: string, userRole: UserRole) {
-    // Check if user has access to this junta
     const junta = await this.prisma.junta.findUnique({
       where: { id: juntaId },
       include: {
@@ -248,47 +613,73 @@ export class PrestamosService {
     return this.prisma.prestamoNew.findMany({
       where: { juntaId },
       include: {
-        member: true,
-        junta: true,
-        pagos: true,
+        member: {
+          select: {
+            id: true,
+            full_name: true,
+          },
+        },
+        junta: {
+          select: JuntaSelect,
+        },
+        pagos: {
+          orderBy: {
+            date: 'desc',
+          },
+        },
+        paymentSchedule: {
+          orderBy: {
+            installment_number: 'asc',
+          },
+        },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: PrestamoOrderBy,
     });
   }
 
   async findByMember(memberId: string, userId: string, userRole: UserRole) {
-    // Admin can see all prestamos
-    if (userRole === 'ADMIN') {
-      return this.prisma.prestamoNew.findMany({
-        where: { memberId },
-        include: {
-          member: true,
-          junta: true,
-          pagos: true,
-        },
-      });
-    }
-
-    // Users can only see their own prestamos
-    if (userId !== memberId && userRole !== 'FACILITATOR') {
+    if (
+      userRole !== 'ADMIN' &&
+      userId !== memberId &&
+      userRole !== 'FACILITATOR'
+    ) {
       throw new ForbiddenException(
-        'You do not have permission to view these prestamos',
+        'You do not have permission to view these loans',
       );
     }
 
-    // Get prestamos where user is either the member or the facilitator of the junta
+    const where =
+      userRole === 'ADMIN'
+        ? { memberId }
+        : {
+            memberId,
+            OR: [{ junta: { createdById: userId } }, { memberId: userId }],
+          };
+
     return this.prisma.prestamoNew.findMany({
-      where: {
-        memberId,
-        OR: [{ junta: { createdById: userId } }, { memberId: userId }],
-      },
+      where,
       include: {
-        member: true,
-        junta: true,
-        pagos: true,
+        member: {
+          select: {
+            id: true,
+            full_name: true,
+          },
+        },
+        junta: {
+          select: JuntaSelect,
+        },
+        pagos: {
+          orderBy: {
+            date: 'desc',
+          },
+        },
+        paymentSchedule: {
+          orderBy: {
+            installment_number: 'asc',
+          },
+        },
       },
+      orderBy: PrestamoOrderBy,
     });
   }
 
@@ -297,10 +688,7 @@ export class PrestamosService {
     userId: string,
     userRole: UserRole,
   ) {
-    // First get all prestamos for the member
     const prestamos = await this.findByMember(memberId, userId, userRole);
-
-    // Then get all pagos for these prestamos
     const prestamoIds = prestamos.map((prestamo) => prestamo.id);
 
     return this.prisma.pagoPrestamoNew.findMany({
@@ -312,8 +700,20 @@ export class PrestamosService {
       include: {
         prestamo: {
           include: {
-            member: true,
-            junta: true,
+            member: {
+              select: {
+                id: true,
+                full_name: true,
+              },
+            },
+            junta: {
+              select: JuntaSelect,
+            },
+            paymentSchedule: {
+              where: {
+                status: PaymentScheduleStatus.PAID,
+              },
+            },
           },
         },
       },
@@ -324,7 +724,6 @@ export class PrestamosService {
   }
 
   async findPagosByJunta(juntaId: string, userId: string, userRole: UserRole) {
-    // Check if user has access to this junta
     const junta = await this.prisma.junta.findUnique({
       where: { id: juntaId },
       include: {
@@ -345,7 +744,6 @@ export class PrestamosService {
       throw new ForbiddenException('You do not have access to this junta');
     }
 
-    // Get all prestamos for the junta
     const prestamos = await this.prisma.prestamoNew.findMany({
       where: { juntaId },
       select: { id: true },
@@ -353,7 +751,6 @@ export class PrestamosService {
 
     const prestamoIds = prestamos.map((prestamo) => prestamo.id);
 
-    // Get all pagos for these prestamos
     return this.prisma.pagoPrestamoNew.findMany({
       where: {
         prestamoId: {
@@ -363,8 +760,15 @@ export class PrestamosService {
       include: {
         prestamo: {
           include: {
-            member: true,
-            junta: true,
+            member: {
+              select: {
+                id: true,
+                full_name: true,
+              },
+            },
+            junta: {
+              select: JuntaSelect,
+            },
           },
         },
       },
@@ -374,39 +778,171 @@ export class PrestamosService {
     });
   }
 
-  async findOne(id: string, userId: string, userRole: UserRole) {
-    const prestamo = await this.prisma.prestamoNew.findUnique({
-      where: { id },
+  async getPaymentHistory(id: string, userId: string, userRole: UserRole) {
+    await this.findOne(id, userId, userRole); // Verify access
+
+    return this.prisma.pagoPrestamoNew.findMany({
+      where: { prestamoId: id },
       include: {
-        member: true,
-        junta: true,
-        pagos: true,
+        prestamo: {
+          include: {
+            member: {
+              select: {
+                id: true,
+                full_name: true,
+              },
+            },
+            junta: {
+              select: JuntaSelect,
+            },
+            paymentSchedule: {
+              where: {
+                status: PaymentScheduleStatus.PAID,
+              },
+              orderBy: {
+                installment_number: 'asc',
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        date: 'desc',
+      },
+    });
+  }
+
+  async getLoanAnalytics(id: string, userId: string, userRole: UserRole) {
+    const prestamo = await this.findOne(id, userId, userRole);
+    const paidSchedules = await this.prisma.paymentSchedule.count({
+      where: {
+        prestamoId: id,
+        status: PaymentScheduleStatus.PAID,
       },
     });
 
-    if (!prestamo) {
-      throw new NotFoundException('Prestamo not found');
-    }
+    const totalPaid = prestamo.pagos.reduce(
+      (sum, pago) => sum + pago.amount,
+      0,
+    );
+    const totalInterest = prestamo.paymentSchedule.reduce(
+      (sum, schedule) => sum + schedule.interest,
+      0,
+    );
 
-    // Check if user has access to this prestamo
-    const hasAccess =
+    return {
+      totalAmount: prestamo.amount,
+      totalPaid,
+      remainingAmount: prestamo.remaining_amount,
+      totalInterest,
+      paidInstallments: paidSchedules,
+      totalInstallments: prestamo.number_of_installments,
+      completionPercentage: (totalPaid / prestamo.amount) * 100,
+      status: prestamo.status,
+      isOverdue: prestamo.paymentSchedule.some(
+        (schedule) =>
+          schedule.status === PaymentScheduleStatus.OVERDUE ||
+          (schedule.status === PaymentScheduleStatus.PENDING &&
+            schedule.due_date < new Date()),
+      ),
+    };
+  }
+
+  async getJuntaLoanSummary(
+    juntaId: string,
+    userId: string,
+    userRole: UserRole,
+  ) {
+    const loans = await this.findByJunta(juntaId, userId, userRole);
+
+    const summary = {
+      totalLoans: loans.length,
+      activeLoans: 0,
+      totalAmountLent: 0,
+      totalAmountPaid: 0,
+      totalInterestEarned: 0,
+      overdueLoans: 0,
+    };
+
+    loans.forEach((loan) => {
+      if (loan.status !== 'PAID') {
+        summary.activeLoans++;
+      }
+      summary.totalAmountLent += loan.amount;
+      summary.totalAmountPaid += loan.pagos.reduce(
+        (sum, pago) => sum + pago.amount,
+        0,
+      );
+      if (
+        loan.paymentSchedule.some(
+          (schedule) => schedule.status === PaymentScheduleStatus.OVERDUE,
+        )
+      ) {
+        summary.overdueLoans++;
+      }
+    });
+
+    return summary;
+  }
+
+  async remove(id: string, userId: string, userRole: UserRole) {
+    const prestamo = await this.findOne(id, userId, userRole);
+
+    const hasPermission =
       userRole === 'ADMIN' ||
-      (userRole === 'FACILITATOR' && prestamo.junta.createdById === userId) ||
-      prestamo.memberId === userId;
+      (userRole === 'FACILITATOR' && prestamo.junta.createdById === userId);
 
-    if (!hasAccess) {
-      throw new ForbiddenException('You do not have access to this prestamo');
+    if (!hasPermission) {
+      throw new ForbiddenException(
+        'You do not have permission to delete this loan',
+      );
     }
 
-    return prestamo;
+    if (prestamo.pagos && prestamo.pagos.length > 0) {
+      throw new BadRequestException(
+        'Cannot delete loan with existing payments',
+      );
+    }
+
+    return this.prisma.$transaction(async (prisma) => {
+      // Delete capital movements
+      await prisma.capitalMovement.deleteMany({
+        where: { prestamoId: id },
+      });
+
+      // Restore junta's capital if loan was affecting it
+      if (prestamo.affects_capital) {
+        await prisma.junta.update({
+          where: { id: prestamo.juntaId },
+          data: {
+            current_capital: UpdateOps.increment(
+              'current_capital',
+              prestamo.amount,
+            ),
+            available_capital: UpdateOps.increment(
+              'available_capital',
+              prestamo.amount,
+            ),
+          },
+        });
+      }
+
+      // Delete the loan
+      await prisma.prestamoNew.delete({
+        where: { id },
+      });
+
+      return { message: 'Loan deleted successfully' };
+    });
   }
 
   async update(
     id: string,
     data: {
-      amount?: number;
-      description?: string;
       status?: string;
+      description?: string;
+      rejected?: boolean;
+      rejection_reason?: string;
     },
     userId: string,
     userRole: UserRole,
@@ -435,30 +971,32 @@ export class PrestamosService {
     });
   }
 
-  async remove(id: string, userId: string, userRole: UserRole) {
-    const prestamo = await this.findOne(id, userId, userRole);
+  // Utility methods
+  private calculateNextPaymentDate(
+    startDate: Date,
+    paymentType: PaymentType,
+    paymentsCompleted: number,
+  ): Date {
+    const nextPaymentDate = new Date(startDate);
+    let intervalDays: number;
 
-    // Check if user has permission to delete prestamos
-    const hasPermission =
-      userRole === 'ADMIN' ||
-      (userRole === 'FACILITATOR' && prestamo.junta.createdById === userId);
-
-    if (!hasPermission) {
-      throw new ForbiddenException(
-        'You do not have permission to delete this prestamo',
-      );
+    switch (paymentType) {
+      case 'SEMANAL':
+        intervalDays = 7;
+        break;
+      case 'QUINCENAL':
+        intervalDays = 15;
+        break;
+      case 'MENSUAL':
+      default:
+        intervalDays = 30;
+        break;
     }
 
-    // Delete all pagos first
-    await this.prisma.pagoPrestamoNew.deleteMany({
-      where: { prestamoId: id },
-    });
+    nextPaymentDate.setDate(
+      nextPaymentDate.getDate() + intervalDays * (paymentsCompleted + 1),
+    );
 
-    // Then delete the prestamo
-    await this.prisma.prestamoNew.delete({
-      where: { id },
-    });
-
-    return { message: 'Prestamo deleted successfully' };
+    return nextPaymentDate;
   }
 }

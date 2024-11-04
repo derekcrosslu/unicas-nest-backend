@@ -7,6 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model PaymentSchedule {
+  id                String      @id @default(uuid())
+  due_date         DateTime
+  expected_amount  Float
+  principal        Float
+  interest         Float
+  installment_number Int
+  status           String      // PENDING, PAID, PARTIAL, OVERDUE
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  prestamoId       String
+  prestamo         PrestamoNew @relation(fields: [prestamoId], references: [id])
+
+  @@index([prestamoId])
+}
+
 model PrestamoNew {
   id                     String            @id @default(uuid())
   amount                 Float
@@ -15,34 +31,35 @@ model PrestamoNew {
   request_date           DateTime          @default(now()) @map("request_date")
   monthly_interest       Float             @default(0) @map("monthly_interest")
   number_of_installments Int               @default(1) @map("number_of_installments")
-  approved               Boolean           @default(false)
-  rejected               Boolean           @default(false)
-  rejection_reason       String?           @map("rejection_reason")
-  paid                   Boolean           @default(false)
-  remaining_amount       Float             @map("remaining_amount")
-  createdAt              DateTime          @default(now())
-  updatedAt              DateTime          @updatedAt
-  juntaId                String
-  memberId               String
-  original_prestamo_id   String?           @map("original_prestamo_id")
-  affects_capital        Boolean           @default(true) @map("affects_capital")
-  avalId                 String?
-  capital_at_time        Float             @map("capital_at_time")
-  capital_snapshot       Json?             @map("capital_snapshot")
-  form_cost              Float             @default(2.0) @map("form_cost")
-  form_purchased         Boolean           @default(false) @map("form_purchased")
-  guarantee_detail       String?           @map("guarantee_detail")
-  guarantee_type         String            @map("guarantee_type")
-  loan_code              String            @map("loan_code")
-  loan_number            Int               @map("loan_number")
-  payment_type           String            @map("payment_type")
-  reason                 String
-  loan_type              String            @map("loan_type")
-  capital_movements      CapitalMovement[]
-  pagos                  PagoPrestamoNew[]
-  aval                   User?             @relation("Aval", fields: [avalId], references: [id])
-  junta                  Junta             @relation(fields: [juntaId], references: [id])
-  member                 User              @relation(fields: [memberId], references: [id])
+  approved              Boolean           @default(false)
+  rejected              Boolean           @default(false)
+  rejection_reason      String?           @map("rejection_reason")
+  paid                  Boolean           @default(false)
+  remaining_amount      Float             @map("remaining_amount")
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  juntaId               String
+  memberId              String
+  original_prestamo_id  String?           @map("original_prestamo_id")
+  affects_capital       Boolean           @default(true) @map("affects_capital")
+  avalId                String?
+  capital_at_time       Float             @map("capital_at_time")
+  capital_snapshot      Json?             @map("capital_snapshot")
+  form_cost             Float             @default(2.0) @map("form_cost")
+  form_purchased        Boolean           @default(false) @map("form_purchased")
+  guarantee_detail      String?           @map("guarantee_detail")
+  guarantee_type        String            @map("guarantee_type")
+  loan_code             String            @map("loan_code")
+  loan_number           Int               @map("loan_number")
+  payment_type          String            @map("payment_type")
+  reason                String
+  loan_type             String            @map("loan_type")
+  capital_movements     CapitalMovement[]
+  pagos                 PagoPrestamoNew[]
+  paymentSchedule       PaymentSchedule[] // Add this line
+  aval                  User?             @relation("Aval", fields: [avalId], references: [id])
+  junta                 Junta             @relation(fields: [juntaId], references: [id])
+  member                User              @relation(fields: [memberId], references: [id])
 
   @@unique([juntaId, loan_number])
 }
@@ -243,3 +260,5 @@ model PagoPrestamo {
   prestamoId String
   prestamo   Prestamo @relation(fields: [prestamoId], references: [id])
 }
+
+

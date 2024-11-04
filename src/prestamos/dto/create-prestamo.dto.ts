@@ -6,39 +6,17 @@ import {
   IsOptional,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-// import { PaymentType, GuaranteeType } from '../types/prestamo.types';
+import {
+  CapitalSnapshot,
+  PaymentSchedule,
+  PaymentType,
+  GuaranteeType,
+  LoanType,
+} from '../types/prestamo.types';
 
-export enum PaymentType {
-  MENSUAL = 'MENSUAL',
-  QUINCENAL = 'QUINCENAL',
-  SEMANAL = 'SEMANAL',
+export interface ExtendedCapitalSnapshot extends CapitalSnapshot {
+  payment_schedule: PaymentSchedule[];
 }
-
-export enum GuaranteeType {
-  AVAL = 'AVAL',
-  INMUEBLE = 'INMUEBLE',
-  HIPOTECARIA = 'HIPOTECARIA',
-  PRENDARIA = 'PRENDARIA',
-}
-
-export enum LoanType {
-  CUOTA_REBATIR = 'CUOTA_REBATIR',
-  CUOTA_FIJA = 'CUOTA_FIJA',
-  CUOTA_VENCIMIENTO = 'CUOTA_VENCIMIENTO',
-  CUOTA_VARIABLE = 'CUOTA_VARIABLE',
-}
-
-// export enum PaymentType {
-//   MENSUAL = 'mensual',
-//   QUINCENAL = 'quincenal',
-//   SEMANAL = 'semanal',
-// }
-
-// export enum GuaranteeType {
-//   PERSONAL = 'personal',
-//   NEGOCIO = 'negocio',
-//   INMUEBLE = 'inmueble',
-// }
 
 export class CreatePrestamoDto {
   @ApiProperty({ description: 'ID of the junta' })

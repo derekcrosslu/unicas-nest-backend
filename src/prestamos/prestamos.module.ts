@@ -5,6 +5,7 @@ import { PrestamosSyncService } from './prestamos-sync.service';
 import { PrestamosTestService } from './prestamos-test.service';
 import { PrestamosMonitorService } from './prestamos-monitor.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { LoanCalculatorService } from './loan-calculator.service';
 
 @Module({
   imports: [PrismaModule],
@@ -14,6 +15,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     PrestamosSyncService,
     PrestamosTestService,
     PrestamosMonitorService,
+    LoanCalculatorService,
   ],
   exports: [
     PrestamosService,
