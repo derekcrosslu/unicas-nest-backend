@@ -31,14 +31,14 @@ Content-Type: application/json
 
 ### Store the junta ID from create response
 @juntaId = {{createJunta.response.body.id}}
-@juntaId2 = 3289e896-c93b-4014-acb0-ba9350567890
+@juntaId2 = 49a5fc02-8ae3-47d2-84b9-5d12408928c1
 
 ### Get all members of a junta
 GET {{baseUrl}}/members/junta/{{juntaId2}}
 Authorization: Bearer {{authToken}}
 
 ### Junta ID for delete
-@juntaIdtoDelete = 790ce901-f522-444d-ba51-4abb5bad9b08
+@juntaIdtoDelete = 20ae5dd0-91c3-4a57-8ddc-4cca20b7ab39
 
 
 #### Delete a junta
@@ -237,6 +237,11 @@ Content-Type: application/json
 ### Step 16: Final verification of junta's capital
 # @name verifyFinalCapital
 GET {{baseUrl}}/juntas/{{juntaId2}}
+Authorization: Bearer {{authToken}}
+
+
+#### get junta payment history
+GET {{baseUrl}}/junta-payments/{{juntaId2}}/history
 Authorization: Bearer {{authToken}}
 
 

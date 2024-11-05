@@ -3,26 +3,23 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoanCalculatorService } from './loan-calculator.service';
 import { UserRole } from '../types/user-role';
 import {
   CreatePrestamoDto,
-  ProcessPaymentDTO,
   LoanType,
   PaymentType,
   GuaranteeType,
   CapitalSnapshot,
-  PrestamoNewSelect,
   JuntaSelect,
   UpdateOps,
   serializeCapitalSnapshot,
-  parseCapitalSnapshot,
   PrestamoOrderBy,
   PrestamoResponse,
   PaymentScheduleItem,
-  PaymentScheduleResponse,
 } from './types/prestamo.types';
 
 const PaymentScheduleStatus = {
@@ -41,57 +38,11 @@ interface ExtendedCapitalSnapshot extends CapitalSnapshot {
 
 @Injectable()
 export class PrestamosService {
+  private readonly logger = new Logger(PrestamosService.name);
   constructor(
     private prisma: PrismaService,
     private loanCalculator: LoanCalculatorService,
   ) {}
-
-  private calculatePaymentSchedule(
-    amount: number,
-    monthly_interest: number,
-    number_of_installments: number,
-    start_date: Date,
-    payment_type: PaymentType,
-    loan_type: LoanType,
-  ): PaymentScheduleItem[] {
-    const calculation = this.loanCalculator.calculateLoan(
-      amount,
-      monthly_interest,
-      number_of_installments,
-      loan_type,
-      payment_type,
-    );
-
-    let intervalDays: number;
-    switch (payment_type) {
-      case 'SEMANAL':
-        intervalDays = 7;
-        break;
-      case 'QUINCENAL':
-        intervalDays = 15;
-        break;
-      case 'MENSUAL':
-      default:
-        intervalDays = 30;
-        break;
-    }
-
-    return (
-      calculation.amortizationSchedule?.map((row, index) => {
-        const due_date = new Date(start_date);
-        due_date.setDate(due_date.getDate() + intervalDays * (index + 1));
-
-        return {
-          due_date,
-          expected_amount: row.payment,
-          principal: row.principal,
-          interest: row.interest,
-          installment_number: index + 1,
-          status: PaymentScheduleStatus.PENDING,
-        };
-      }) || []
-    );
-  }
 
   async create(
     data: CreatePrestamoDto,
@@ -124,6 +75,7 @@ export class PrestamosService {
     }
 
     const amount = parseFloat(data.amount);
+
     const monthly_interest = parseFloat(data.monthly_interest);
 
     if (junta.available_capital < amount) {
@@ -206,17 +158,17 @@ export class PrestamosService {
       });
 
       // Create payment schedule entries
-      await prisma.paymentSchedule.createMany({
-        data: payment_schedule.map((schedule) => ({
-          prestamoId: prestamo.id,
-          due_date: schedule.due_date,
-          expected_amount: schedule.expected_amount,
-          principal: schedule.principal,
-          interest: schedule.interest,
-          installment_number: schedule.installment_number,
-          status: schedule.status as PaymentScheduleStatusType,
-        })),
-      });
+      // await prisma.paymentSchedule.createMany({
+      //   data: payment_schedule.map((schedule) => ({
+      //     prestamoId: prestamo.id,
+      //     due_date: schedule.due_date,
+      //     expected_amount: schedule.expected_amount,
+      //     principal: schedule.principal,
+      //     interest: schedule.interest,
+      //     installment_number: schedule.installment_number,
+      //     status: schedule.status as PaymentScheduleStatusType,
+      //   })),
+      // });
 
       // Create capital movement
       await prisma.capitalMovement.create({
@@ -253,20 +205,10 @@ export class PrestamosService {
           },
         },
       });
-      console.log('prestamoWithDetails: ', prestamoWithDetails);
-      // const paymentSchedule = prestamoWithDetails.paymentSchedule.map(
-      //   (schedule) => ({
-      //     ...schedule,
-      //     status: schedule.status as PaymentScheduleStatusType,
-      //   }),
-      // );
       return {
         ...prestamoWithDetails,
         // paymentSchedule,
         guarantee_type: '' as GuaranteeType,
-        // capital_snapshot: parseCapitalSnapshot(
-        //   prestamoWithDetails.capital_snapshot as unknown as string,
-        // ),
         capital_snapshot: {} as CapitalSnapshot,
       };
     });
@@ -379,6 +321,180 @@ export class PrestamosService {
     });
   }
 
+  async deletePago(pagoId: string, userId: string, userRole: UserRole) {
+    // First, find the payment and its associated loan
+    const pago = await this.prisma.pagoPrestamoNew.findUnique({
+      where: { id: pagoId },
+      include: {
+        prestamo: {
+          include: {
+            junta: true,
+            pagos: {
+              orderBy: {
+                date: 'desc',
+              },
+            },
+            paymentSchedule: {
+              orderBy: {
+                installment_number: 'asc',
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!pago) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    // Check permissions
+    const hasPermission =
+      userRole === 'ADMIN' ||
+      (userRole === 'FACILITATOR' &&
+        pago.prestamo.junta.createdById === userId);
+
+    if (!hasPermission) {
+      throw new ForbiddenException(
+        'You do not have permission to delete this payment',
+      );
+    }
+
+    try {
+      return await this.prisma.$transaction(async (prisma) => {
+        // Delete capital movement associated with the payment
+        await prisma.capitalMovement.deleteMany({
+          where: { pagoId },
+        });
+
+        // Calculate new remaining amount for the loan
+        const newRemainingAmount =
+          pago.prestamo.amount -
+          pago.prestamo.pagos
+            .filter((p) => p.id !== pagoId)
+            .reduce((sum, p) => sum + p.amount, 0);
+
+        // Reset payment schedule statuses
+        await prisma.paymentSchedule.updateMany({
+          where: {
+            prestamoId: pago.prestamoId,
+            installment_number: {
+              gte:
+                pago.prestamo.paymentSchedule.find(
+                  (ps) =>
+                    ps.status !== 'PAID' ||
+                    new Date(ps.due_date) > new Date(pago.date),
+                )?.installment_number || 1,
+            },
+          },
+          data: {
+            status: 'PENDING',
+          },
+        });
+
+        // Restore junta's capital if payment affected it
+        if (pago.affects_capital) {
+          await prisma.junta.update({
+            where: { id: pago.prestamo.juntaId },
+            data: {
+              current_capital: {
+                decrement: pago.amount,
+              },
+              available_capital: {
+                decrement: pago.amount,
+              },
+            },
+          });
+        }
+
+        // Update loan status and remaining amount
+        await prisma.prestamoNew.update({
+          where: { id: pago.prestamoId },
+          data: {
+            status:
+              newRemainingAmount === pago.prestamo.amount
+                ? 'PENDING'
+                : 'PARTIAL',
+            remaining_amount: newRemainingAmount,
+            paid: false,
+          },
+        });
+
+        // Finally, delete the payment
+        await prisma.pagoPrestamoNew.delete({
+          where: { id: pagoId },
+        });
+
+        return {
+          message: 'Payment deleted successfully',
+          details: {
+            amount: pago.amount,
+            capitalRestored: pago.affects_capital ? pago.amount : 0,
+            loanUpdated: {
+              newRemainingAmount,
+              newStatus:
+                newRemainingAmount === pago.prestamo.amount
+                  ? 'PENDING'
+                  : 'PARTIAL',
+            },
+          },
+        };
+      });
+    } catch (error) {
+      this.logger.error(`Error deleting payment ${pagoId}:`, error);
+      throw new Error('Failed to delete payment and restore related records');
+    }
+  }
+
+  private calculatePaymentSchedule(
+    amount: number,
+    monthly_interest: number,
+    number_of_installments: number,
+    start_date: Date,
+    payment_type: PaymentType,
+    loan_type: LoanType,
+  ): PaymentScheduleItem[] {
+    console.log('loan_type: ', loan_type);
+    const calculation = this.loanCalculator.calculateLoan(
+      amount,
+      monthly_interest,
+      number_of_installments,
+      loan_type,
+      payment_type,
+    );
+
+    console.log('calculation: ', calculation);
+    let intervalDays: number;
+    switch (payment_type) {
+      case 'SEMANAL':
+        intervalDays = 7;
+        break;
+      case 'QUINCENAL':
+        intervalDays = 15;
+        break;
+      case 'MENSUAL':
+      default:
+        intervalDays = 30;
+        break;
+    }
+
+    return (
+      calculation.amortizationSchedule?.map((row, index) => {
+        const due_date = new Date(start_date);
+        due_date.setDate(due_date.getDate() + intervalDays * (index + 1));
+
+        return {
+          due_date,
+          expected_amount: row.payment,
+          principal: row.principal,
+          interest: row.interest,
+          installment_number: index + 1,
+          status: PaymentScheduleStatus.PENDING,
+        };
+      }) || []
+    );
+  }
+
   private async updatePaymentScheduleStatuses(
     prisma: any,
     prestamo: any,
@@ -479,17 +595,25 @@ export class PrestamosService {
           );
         }
         break;
-
       case 'CUOTA_VENCIMIENTO':
-        if (amount !== prestamo.remaining_amount) {
+        if (amount < nextPayment.interest) {
           throw new BadRequestException(
-            'Payment at maturity requires full remaining amount',
+            `Payment must cover at least the interest amount: ${nextPayment.interest}`,
           );
         }
         break;
 
+      // case 'CUOTA_VENCIMIENTO':
+      //   if (amount !== prestamo.remaining_amount) {
+      //     throw new BadRequestException(
+      //       'Payment at maturity requires full remaining amount',
+      //     );
+      //   }
+      //   break;
+
       case 'CUOTA_VARIABLE':
-        if (amount !== nextPayment.expected_amount) {
+        const expectedAmountRounded = nextPayment.expected_amount.toFixed(2);
+        if (amount !== parseFloat(expectedAmountRounded)) {
           throw new BadRequestException(
             `Payment must match scheduled amount: ${nextPayment.expected_amount}`,
           );
@@ -778,6 +902,64 @@ export class PrestamosService {
     });
   }
 
+  async getJuntaPaymentHistory(
+    juntaId: string,
+    userId: string,
+    userRole: UserRole,
+  ) {
+    const prestamos = await this.findByJunta(juntaId, userId, userRole);
+    const prestamoIds = prestamos.map((prestamo) => prestamo.id);
+
+    const pagos = await this.prisma.pagoPrestamoNew.findMany({
+      where: {
+        prestamoId: {
+          in: prestamoIds,
+        },
+      },
+      include: {
+        prestamo: {
+          include: {
+            member: {
+              select: {
+                id: true,
+                full_name: true,
+              },
+            },
+            junta: {
+              select: JuntaSelect,
+            },
+            paymentSchedule: {
+              orderBy: {
+                installment_number: 'asc',
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        date: 'desc',
+      },
+    });
+
+    return pagos.map((pago) => {
+      // Get remaining installments by counting pending payments
+      const remainingInstallments = pago.prestamo.paymentSchedule.filter(
+        (schedule) =>
+          schedule.status === 'PENDING' || schedule.status === 'PARTIAL',
+      ).length;
+
+      return {
+        ...pago,
+        remaining_installments: remainingInstallments,
+        prestamo: {
+          ...pago.prestamo,
+          // Remove payment schedule from response if not needed
+          paymentSchedule: undefined,
+        },
+      };
+    });
+  }
+
   async getPaymentHistory(id: string, userId: string, userRole: UserRole) {
     await this.findOne(id, userId, userRole); // Verify access
 
@@ -904,36 +1086,66 @@ export class PrestamosService {
       );
     }
 
-    return this.prisma.$transaction(async (prisma) => {
-      // Delete capital movements
-      await prisma.capitalMovement.deleteMany({
-        where: { prestamoId: id },
-      });
-
-      // Restore junta's capital if loan was affecting it
-      if (prestamo.affects_capital) {
-        await prisma.junta.update({
-          where: { id: prestamo.juntaId },
-          data: {
-            current_capital: UpdateOps.increment(
-              'current_capital',
-              prestamo.amount,
-            ),
-            available_capital: UpdateOps.increment(
-              'available_capital',
-              prestamo.amount,
-            ),
-          },
+    try {
+      return await this.prisma.$transaction(async (prisma) => {
+        // Count related records for verification
+        const scheduleCount = await prisma.paymentSchedule.count({
+          where: { prestamoId: id },
         });
-      }
 
-      // Delete the loan
-      await prisma.prestamoNew.delete({
-        where: { id },
+        const capitalMovementsCount = await prisma.capitalMovement.count({
+          where: { prestamoId: id },
+        });
+
+        // Delete payment schedules
+        if (scheduleCount > 0) {
+          await prisma.paymentSchedule.deleteMany({
+            where: { prestamoId: id },
+          });
+        }
+
+        // Delete capital movements
+        if (capitalMovementsCount > 0) {
+          await prisma.capitalMovement.deleteMany({
+            where: { prestamoId: id },
+          });
+        }
+
+        // Restore junta's capital if loan was affecting it
+        if (prestamo.affects_capital) {
+          await prisma.junta.update({
+            where: { id: prestamo.juntaId },
+            data: {
+              current_capital: UpdateOps.increment(
+                'current_capital',
+                prestamo.amount,
+              ),
+              available_capital: UpdateOps.increment(
+                'available_capital',
+                prestamo.amount,
+              ),
+            },
+          });
+        }
+
+        // Delete the loan
+        await prisma.prestamoNew.delete({
+          where: { id },
+        });
+
+        return {
+          message: 'Loan deleted successfully',
+          details: {
+            schedulesDeleted: scheduleCount,
+            capitalMovementsDeleted: capitalMovementsCount,
+            capitalRestored: prestamo.affects_capital ? prestamo.amount : 0,
+          },
+        };
       });
-
-      return { message: 'Loan deleted successfully' };
-    });
+    } catch (error) {
+      this.logger.error(`Error deleting loan ${id}:`, error);
+      throw new Error('Failed to delete loan and related records');
+    }
   }
 
   async update(

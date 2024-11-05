@@ -176,7 +176,6 @@ export class JuntasService {
         this.prisma.capitalMovement.deleteMany({
           where: { juntaId: id },
         }),
-
         // Delete all loan payments
         this.prisma.pagoPrestamoNew.deleteMany({
           where: {

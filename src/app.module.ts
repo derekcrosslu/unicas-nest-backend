@@ -16,6 +16,7 @@ import { AccionesModule } from './acciones/acciones.module';
 import { AgendaModule } from './agenda/agenda.module';
 import { CapitalModule } from './capital/capital.module';
 import { Reflector } from '@nestjs/core';
+import { JuntaPaymentModule } from './junta-payment/junta-payment.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { Reflector } from '@nestjs/core';
     AccionesModule,
     AgendaModule,
     CapitalModule,
+    JuntaPaymentModule,
   ],
   controllers: [AppController],
   providers: [

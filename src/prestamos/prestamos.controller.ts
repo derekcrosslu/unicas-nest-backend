@@ -86,7 +86,6 @@ export class PrestamosController {
     @Body() data: { amount: number },
     @Request() req: RequestWithUser,
   ) {
-    console.log('data: ', data);
     // First validate the payment
     await this.prestamosService.validatePayment(
       id,
@@ -109,6 +108,13 @@ export class PrestamosController {
   @ApiParam({ name: 'id', type: 'string' })
   async findOne(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.prestamosService.findOne(id, req.user.id, req.user.role);
+  }
+
+  @Delete('pagos/:id')
+  @ApiOperation({ summary: 'Delete a payment' })
+  @ApiParam({ name: 'id', type: 'string' })
+  async deletePago(@Param('id') id: string, @Request() req: RequestWithUser) {
+    return this.prestamosService.deletePago(id, req.user.id, req.user.role);
   }
 
   @Get(':id/remaining-payments')
