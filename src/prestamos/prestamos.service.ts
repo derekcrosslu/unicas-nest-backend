@@ -504,10 +504,13 @@ export class PrestamosService {
     let remainingPayment = currentPaymentAmount;
     const today = new Date();
 
+    console.log('totalPaidAmount: ', totalPaidAmount);
+
     for (const scheduleItem of prestamo.paymentSchedule) {
       if (scheduleItem.status === PaymentScheduleStatus.PAID) {
         continue;
       }
+      console.log('scheduleItem: ', scheduleItem);
 
       if (remainingPayment >= scheduleItem.expected_amount) {
         // Full payment for this installment
@@ -518,11 +521,19 @@ export class PrestamosService {
         remainingPayment -= scheduleItem.expected_amount;
       } else if (remainingPayment > 0) {
         // Partial payment
+        const remainingAmount = scheduleItem.expected_amount - remainingPayment;
         await prisma.paymentSchedule.update({
           where: { id: scheduleItem.id },
-          data: { status: PaymentScheduleStatus.PARTIAL },
+          data: {
+            status: PaymentScheduleStatus.PARTIAL,
+            expected_amount: remainingAmount,
+          },
         });
-        remainingPayment = 0;
+        if (remainingAmount > 0) {
+          remainingPayment = remainingPayment - remainingAmount;
+        } else {
+          remainingPayment = 0;
+        }
       } else if (scheduleItem.due_date < today) {
         // Past due date without payment
         await prisma.paymentSchedule.update({
@@ -612,13 +623,19 @@ export class PrestamosService {
       //   break;
 
       case 'CUOTA_VARIABLE':
-        const expectedAmountRounded = nextPayment.expected_amount.toFixed(2);
-        if (amount !== parseFloat(expectedAmountRounded)) {
+        if (amount < nextPayment.interest) {
           throw new BadRequestException(
-            `Payment must match scheduled amount: ${nextPayment.expected_amount}`,
+            `Payment must cover at least the interest amount: ${nextPayment.interest}`,
           );
         }
         break;
+      // const expectedAmountRounded = nextPayment.expected_amount.toFixed(2);
+      // if (amount !== parseFloat(expectedAmountRounded)) {
+      //   throw new BadRequestException(
+      //     `Payment must match scheduled amount: ${nextPayment.expected_amount}`,
+      //   );
+      // }
+      // break;
     }
 
     return true;
@@ -659,7 +676,16 @@ export class PrestamosService {
     );
     const nextPaymentDue = prestamo.paymentSchedule[0];
     const nextPaymentDate = nextPaymentDue?.due_date;
-
+    if (prestamo.remaining_amount === 0) {
+      return {
+        totalPaid,
+        remainingAmount: 0,
+        remainingPayments: [],
+        nextPaymentDue: null,
+        nextPaymentDate: null,
+        isOverdue: false,
+      };
+    }
     return {
       totalPaid,
       remainingAmount: prestamo.remaining_amount,
