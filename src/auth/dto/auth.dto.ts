@@ -1,51 +1,39 @@
-import {
-  IsEmail,
-  IsString,
-  MinLength,
-  IsOptional,
-  ValidateIf,
-  IsNotEmpty,
-} from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { IsString, IsOptional, Length, Matches } from 'class-validator';
 
 export class LoginDto {
-  @ApiProperty({ required: false })
-  @IsEmail()
-  @ValidateIf((o) => !o.phone)
-  @IsOptional()
-  email?: string;
-
-  @ApiProperty({ required: false })
   @IsString()
-  @IsNotEmpty()
-  @ValidateIf((o) => !o.email)
-  phone?: string;
+  @Length(9, 12)
+  @Matches(/^\+?[0-9]+$/, {
+    message: 'Phone number must contain only digits and optional + prefix',
+  })
+  phone: string;
 
-  @ApiProperty()
   @IsString()
-  @MinLength(6)
+  @Length(6, 20)
   password: string;
 }
 
 export class RegisterDto {
-  @ApiProperty({ required: false })
-  @IsEmail()
-  @IsOptional()
-  email?: string;
-
-  @ApiProperty()
   @IsString()
-  @MinLength(3)
+  @Length(3, 20)
+  @Matches(/^[a-zA-Z0-9_-]+$/, {
+    message:
+      'Username can only contain letters, numbers, underscores, and dashes',
+  })
   username: string;
 
-  @ApiProperty()
   @IsString()
-  @MinLength(6)
+  @Length(9, 12)
+  @Matches(/^\+?[0-9]+$/, {
+    message: 'Phone number must contain only digits and optional + prefix',
+  })
+  phone: string;
+
+  @IsString()
+  @Length(6, 20)
   password: string;
 
-  @ApiProperty()
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  phone: string;
+  role?: string;
 }

@@ -1,4 +1,4 @@
-# Las Unicas Backend - STAGING ENV
+# Las Unicas Backend
 
 NestJS backend for Las Unicas application with role-based access control and comprehensive financial management features.
 

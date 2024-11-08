@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ConfigModule } from './config/config.module';
+import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
@@ -15,10 +15,14 @@ import { MultasModule } from './multas/multas.module';
 import { AccionesModule } from './acciones/acciones.module';
 import { AgendaModule } from './agenda/agenda.module';
 import { CapitalModule } from './capital/capital.module';
+import { Reflector } from '@nestjs/core';
+import { JuntaPaymentModule } from './junta-payment/junta-payment.module';
 
 @Module({
   imports: [
-    ConfigModule,
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     PrismaModule,
     UsersModule,
     AuthModule,
@@ -30,13 +34,18 @@ import { CapitalModule } from './capital/capital.module';
     AccionesModule,
     AgendaModule,
     CapitalModule,
+    JuntaPaymentModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+    Reflector,
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard,
+      useFactory: (reflector: Reflector) => {
+        return new JwtAuthGuard(reflector);
+      },
+      inject: [Reflector],
     },
   ],
 })

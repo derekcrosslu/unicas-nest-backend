@@ -35,6 +35,7 @@ export class AccionesController {
     data: {
       type: string;
       amount: number;
+      shareValue: number;
       description?: string;
       juntaId: string;
       memberId: string;
@@ -46,6 +47,7 @@ export class AccionesController {
       data.memberId,
       data.type,
       data.amount,
+      data.shareValue,
       data.description,
       req.user.id,
       req.user.role,

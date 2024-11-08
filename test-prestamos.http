@@ -1,0 +1,81 @@
+@baseUrl = http://localhost:3000/api
+
+### Step 1: Login with admin credentials
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "phone": "912345678",
+    "password": "123123"
+}
+
+
+### Store the auth token from login response
+@authToken = {{login.response.body.access_token}}
+
+### Get all juntas
+GET {{baseUrl}}/juntas
+Authorization: Bearer {{authToken}}
+
+### Get all members of a junta
+GET {{baseUrl}}/members/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+### Store the junta ID from create response
+@juntaId = 49a5fc02-8ae3-47d2-84b9-5d12408928c1
+
+### Store the member ID from create response
+@memberId = 64b0d2d8-b0fd-4d53-89a7-b76c21ded612
+
+#### LOAN TYPES:
+# 'CUOTA_REBATIR' | 'CUOTA_FIJA' | 'CUOTA_VENCIMIENTO' | 'CUOTA_VARIABLE'
+#### PAYMENT TYPES:
+# 'MENSUAL' | 'QUINCENAL' | 'SEMANAL';
+#### GUARANTEE TYPES:
+# 'AVAL' | 'INMUEBLE' | 'HIPOTECARIA' | 'PRENDARIA';
+
+### Step 7: Create a personal prestamo
+# @name createPersonalPrestamo
+POST {{baseUrl}}/prestamos
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "juntaId": "{{juntaId}}",
+    "memberId": "{{memberId}}",
+    "request_date": "2024-11-01",
+    "amount": "12",
+    "monthly_interest": "2",
+    "number_of_installments": 6,
+    "loan_type": "CUOTA_REBATIR",
+    "reason": "Personal expenses",
+    "guarantee_type": "INMUEBLE",
+    "guarantee_detail": "Personal guarantee",
+    "form_purchased": true,
+    "payment_type": "MENSUAL"
+}
+
+### Check all prestamos
+GET {{baseUrl}}/prestamos/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+@newPrestamoId = bffefe7f-b20a-463a-b415-2193ec49ca87
+
+### Get loan schedule
+GET {{baseUrl}}/prestamos/{{newPrestamoId}}/remaining-payments
+Authorization: Bearer {{authToken}}
+
+### Step 9: Add a pago (loan payment)
+# @name createPago
+POST {{baseUrl}}/prestamos/{{newPrestamoId}}/pagos
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "amount": 7
+}
+
+### Get all pagos
+GET {{baseUrl}}/prestamos/junta/{{juntaId}}/pagos
+Authorization: Bearer {{authToken}}

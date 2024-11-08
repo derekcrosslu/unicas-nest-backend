@@ -7,54 +7,185 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                  String        @id @default(uuid())
-  email               String?       @unique
-  username            String        @unique
-  password            String        @default("$2b$10$6jXzYyNVXB5V6863yxGIzOC5D.yqNoE1lO9H.hU4UYVKiV5BOh2S6")
-  phone               String
-  role                String        @default("USER")
-  member_role         String?       // socio, presidente, tesorero, secretario
-  document_type       String?
-  document_number     String?
-  full_name          String?
-  productive_activity String?
-  birth_date         DateTime?
-  address            String?
-  join_date          DateTime?
-  gender             String?
-  additional_info    String?
-  status             String        @default("Activo")
-  // Beneficiary information
-  beneficiary_full_name      String?
-  beneficiary_document_type  String?
-  beneficiary_document_number String?
-  beneficiary_phone         String?
-  beneficiary_address       String?
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  acciones            Accion[]
-  createdJuntas       Junta[]       @relation("CreatedBy")
-  memberJuntas        JuntaMember[]
-  multas              Multa[]
-  prestamos           Prestamo[]
+model PaymentSchedule {
+  id                String      @id @default(uuid())
+  due_date         DateTime
+  expected_amount  Float
+  principal        Float
+  interest         Float
+  installment_number Int
+  status           String      // PENDING, PAID, PARTIAL, OVERDUE
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  prestamoId       String
+  prestamo         PrestamoNew @relation(fields: [prestamoId], references: [id])
+
+  @@index([prestamoId])
+}
+
+model PrestamoNew {
+  id                     String            @id @default(uuid())
+  amount                 Float
+  description            String?
+  status                 String            @default("PENDING")
+  request_date           DateTime          @default(now()) @map("request_date")
+  monthly_interest       Float             @default(0) @map("monthly_interest")
+  number_of_installments Int               @default(1) @map("number_of_installments")
+  approved              Boolean           @default(false)
+  rejected              Boolean           @default(false)
+  rejection_reason      String?           @map("rejection_reason")
+  paid                  Boolean           @default(false)
+  remaining_amount      Float             @map("remaining_amount")
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  juntaId               String
+  memberId              String
+  original_prestamo_id  String?           @map("original_prestamo_id")
+  affects_capital       Boolean           @default(true) @map("affects_capital")
+  avalId                String?
+  capital_at_time       Float             @map("capital_at_time")
+  capital_snapshot      Json?             @map("capital_snapshot")
+  form_cost             Float             @default(2.0) @map("form_cost")
+  form_purchased        Boolean           @default(false) @map("form_purchased")
+  guarantee_detail      String?           @map("guarantee_detail")
+  guarantee_type        String            @map("guarantee_type")
+  loan_code             String            @map("loan_code")
+  loan_number           Int               @map("loan_number")
+  payment_type          String            @map("payment_type")
+  reason                String
+  loan_type             String            @map("loan_type")
+  capital_movements     CapitalMovement[]
+  pagos                 PagoPrestamoNew[]
+  paymentSchedule       PaymentSchedule[] // Add this line
+  aval                  User?             @relation("Aval", fields: [avalId], references: [id])
+  junta                 Junta             @relation(fields: [juntaId], references: [id])
+  member                User              @relation(fields: [memberId], references: [id])
+
+  @@unique([juntaId, loan_number])
+}
+
+model CapitalMovement {
+  id          String           @id @default(uuid())
+  amount      Float
+  type        String
+  direction   String
+  description String?
+  createdAt   DateTime         @default(now())
+  juntaId     String
+  prestamoId  String?
+  multaId     String?
+  accionId    String?
+  pagoId      String?
+  accion      Accion?          @relation(fields: [accionId], references: [id])
+  junta       Junta            @relation(fields: [juntaId], references: [id])
+  multa       Multa?           @relation(fields: [multaId], references: [id])
+  pago        PagoPrestamoNew? @relation(fields: [pagoId], references: [id])
+  prestamo    PrestamoNew?     @relation(fields: [prestamoId], references: [id])
+
+  @@index([juntaId, createdAt])
+  @@index([type, direction])
+}
+
+model Accion {
+  id                String            @id @default(uuid())
+  type              String
+  amount            Float
+  shareValue        Float             
+  description       String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  juntaId           String
+  memberId          String
+  affects_capital   Boolean           @default(true) @map("affects_capital")
+  junta             Junta             @relation(fields: [juntaId], references: [id])
+  member            User              @relation(fields: [memberId], references: [id])
+  capital_movements CapitalMovement[]
+
+  @@index([juntaId, createdAt])
+}
+
+model Multa {
+  id                String            @id @default(uuid())
+  amount            Float
+  description       String
+  status            String            @default("PENDING")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  juntaId           String
+  memberId          String
+  affects_capital   Boolean           @default(true) @map("affects_capital")
+  capital_movements CapitalMovement[]
+  junta             Junta             @relation(fields: [juntaId], references: [id])
+  member            User              @relation(fields: [memberId], references: [id])
+}
+
+model PagoPrestamoNew {
+  id                String            @id @default(uuid())
+  amount            Float
+  date              DateTime          @default(now())
+  prestamoId        String
+  original_pago_id  String?           @map("original_pago_id")
+  affects_capital   Boolean           @default(true) @map("affects_capital")
+  capital_movements CapitalMovement[]
+  prestamo          PrestamoNew       @relation(fields: [prestamoId], references: [id])
+
+  @@index([original_pago_id])
 }
 
 model Junta {
-  id           String         @id @default(uuid())
-  name         String
-  description  String?
-  fecha_inicio DateTime
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  createdById  String
-  acciones     Accion[]
-  agenda       AgendaItem[]
-  capital      CapitalSocial?
-  createdBy    User           @relation("CreatedBy", fields: [createdById], references: [id])
-  members      JuntaMember[]
-  multas       Multa[]
-  prestamos    Prestamo[]
+  id                String            @id @default(uuid())
+  name              String
+  description       String?
+  fecha_inicio      DateTime          @map("fecha_inicio")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  createdById       String
+  available_capital Float             @default(0) @map("available_capital")
+  base_capital      Float             @default(0) @map("base_capital")
+  current_capital   Float             @default(0) @map("current_capital")
+  acciones          Accion[]
+  agenda            AgendaItem[]
+  capital_movements CapitalMovement[]
+  capital           CapitalSocial?
+  createdBy         User              @relation("CreatedBy", fields: [createdById], references: [id])
+  members           JuntaMember[]
+  multas            Multa[]
+  prestamos         Prestamo[]
+  prestamos_new     PrestamoNew[]
+}
+
+model User {
+  id                          String        @id @default(uuid())
+  email                       String?       @unique
+  username                    String        @unique
+  password                    String        @default("$2b$10$6jXzYyNVXB5V6863yxGIzOC5D.yqNoE1lO9H.hU4UYVKiV5BOh2S6")
+  role                        String        @default("USER")
+  document_type               String?       @map("document_type")
+  document_number             String?       @map("document_number")
+  full_name                   String?       @map("full_name")
+  birth_date                  DateTime?     @map("birth_date")
+  address                     String?
+  createdAt                   DateTime      @default(now())
+  updatedAt                   DateTime      @updatedAt
+  phone                       String
+  additional_info             String?       @map("additional_info")
+  beneficiary_address         String?       @map("beneficiary_address")
+  beneficiary_document_number String?       @map("beneficiary_document_number")
+  beneficiary_document_type   String?       @map("beneficiary_document_type")
+  beneficiary_full_name       String?       @map("beneficiary_full_name")
+  beneficiary_phone           String?       @map("beneficiary_phone")
+  gender                      String?
+  join_date                   DateTime?     @map("join_date")
+  member_role                 String?       @map("member_role")
+  productive_activity         String?       @map("productive_activity")
+  status                      String        @default("Activo")
+  acciones                    Accion[]
+  createdJuntas               Junta[]       @relation("CreatedBy")
+  memberJuntas                JuntaMember[]
+  multas                      Multa[]
+  prestamos                   Prestamo[]
+  avalPrestamos               PrestamoNew[] @relation("Aval")
+  prestamos_new               PrestamoNew[]
 }
 
 model JuntaMember {
@@ -66,54 +197,6 @@ model JuntaMember {
   user     User     @relation(fields: [userId], references: [id])
 
   @@unique([juntaId, userId])
-}
-
-model Prestamo {
-  id          String         @id @default(uuid())
-  amount      Float
-  description String?
-  status      String         @default("PENDING")
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  juntaId     String
-  memberId    String
-  pagos       PagoPrestamo[]
-  junta       Junta          @relation(fields: [juntaId], references: [id])
-  member      User           @relation(fields: [memberId], references: [id])
-}
-
-model PagoPrestamo {
-  id         String   @id @default(uuid())
-  amount     Float
-  date       DateTime @default(now())
-  prestamoId String
-  prestamo   Prestamo @relation(fields: [prestamoId], references: [id])
-}
-
-model Multa {
-  id          String   @id @default(uuid())
-  amount      Float
-  description String
-  status      String   @default("PENDING")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  juntaId     String
-  memberId    String
-  junta       Junta    @relation(fields: [juntaId], references: [id])
-  member      User     @relation(fields: [memberId], references: [id])
-}
-
-model Accion {
-  id          String   @id @default(uuid())
-  type        String
-  amount      Float
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  juntaId     String
-  memberId    String
-  junta       Junta    @relation(fields: [juntaId], references: [id])
-  member      User     @relation(fields: [memberId], references: [id])
 }
 
 model AgendaItem {
@@ -155,3 +238,27 @@ model GastoCapital {
   capitalSocialId String
   capitalSocial   CapitalSocial @relation(fields: [capitalSocialId], references: [id])
 }
+
+model Prestamo {
+  id          String         @id @default(uuid())
+  amount      Float
+  description String?
+  status      String         @default("PENDING")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  juntaId     String
+  memberId    String
+  pagos       PagoPrestamo[]
+  junta       Junta          @relation(fields: [juntaId], references: [id])
+  member      User           @relation(fields: [memberId], references: [id])
+}
+
+model PagoPrestamo {
+  id         String   @id @default(uuid())
+  amount     Float
+  date       DateTime @default(now())
+  prestamoId String
+  prestamo   Prestamo @relation(fields: [prestamoId], references: [id])
+}
+
+
