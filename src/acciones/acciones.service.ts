@@ -299,17 +299,18 @@ export class AccionesService {
         where: { accionId: id },
       });
 
+      const decrease_amount = accion.amount * accion.shareValue;
+
       // Update junta's capital
       await prisma.junta.update({
         where: { id: accion.juntaId },
         data: {
-          current_capital: { decrement: accion.amount },
-          base_capital: { decrement: accion.amount },
-          available_capital: { decrement: accion.amount },
+          current_capital: { decrement: decrease_amount },
+          base_capital: { decrement: decrease_amount },
+          available_capital: { decrement: decrease_amount },
         },
       });
 
-      // Delete accion
       await prisma.accion.delete({
         where: { id },
       });
