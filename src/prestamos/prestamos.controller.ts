@@ -160,6 +160,7 @@ export class PrestamosController {
     @Param('id') id: string,
     @Request() req: RequestWithUser,
   ) {
+    console.log('getRemainingPayments id: ', id);
     return this.prestamosService.getRemainingPayments(
       id,
       req.user.id,

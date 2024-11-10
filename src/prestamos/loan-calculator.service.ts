@@ -67,40 +67,37 @@ export class LoanCalculatorService {
     monthlyInterest: number,
     numberOfPayments: number,
   ): LoanCalculation {
-    // Convert annual interest rate to monthly rate
     const monthlyRate = monthlyInterest / 100;
-
-    // Calculate base quota using the formula
-    const quota =
-      principal *
-      (monthlyRate / (1 - Math.pow(1 + monthlyRate, -numberOfPayments)));
-
     let remainingBalance = principal;
+    const principalPerPeriod = principal / numberOfPayments; // Equal principal portions
     const amortizationSchedule: AmortizationRow[] = [];
     let totalInterest = 0;
 
     for (let i = 0; i < numberOfPayments; i++) {
-      // Recalculate interest based on current balance and rate
+      // Interest varies based on remaining balance
       const interest = remainingBalance * monthlyRate;
       totalInterest += interest;
 
-      // Principal is the difference between quota and interest
-      const principalPayment = quota - interest;
+      // Payment is principal portion plus interest
+      const payment = principalPerPeriod + interest;
 
       // Update remaining balance
-      remainingBalance -= principalPayment;
+      remainingBalance -= principalPerPeriod;
 
       amortizationSchedule.push({
-        payment: quota,
-        principal: principalPayment,
-        interest,
+        payment, // Variable payment amount
+        principal: principalPerPeriod, // Fixed principal amount
+        interest, // Decreasing interest amount
         balance: Math.max(0, remainingBalance),
       });
     }
 
     return {
-      monthlyPayment: quota,
-      totalPayment: quota * numberOfPayments,
+      monthlyPayment: null, // No fixed monthly payment in variable loans
+      totalPayment: amortizationSchedule.reduce(
+        (sum, row) => sum + row.payment,
+        0,
+      ),
       totalInterest,
       amortizationSchedule,
     };
