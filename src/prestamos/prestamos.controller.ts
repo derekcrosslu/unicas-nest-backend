@@ -75,6 +75,7 @@ export class PrestamosController {
     @Body() data: CreatePrestamoDto,
     @Request() req: RequestWithUser,
   ): Promise<PrestamoResponse> {
+    console.log('data: ', data);
     return this.prestamosService.create(data, req.user.id, req.user.role);
   }
 

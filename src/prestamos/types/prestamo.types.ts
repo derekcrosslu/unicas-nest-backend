@@ -132,6 +132,7 @@ export interface CreatePrestamoDto {
   avalId?: string;
   loan_type: LoanType;
   form_purchased: boolean;
+  form_cost: number;
 }
 
 export interface ProcessPaymentDTO {

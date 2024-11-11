@@ -20,7 +20,9 @@ import {
   PrestamoOrderBy,
   PrestamoResponse,
   PaymentScheduleItem,
+  PaymentSchedule,
 } from './types/prestamo.types';
+import { PrismaClient } from '@prisma/client';
 
 const PaymentScheduleStatus = {
   PENDING: 'PENDING',
@@ -132,7 +134,7 @@ export class PrestamosService {
           guarantee_type: data.guarantee_type as GuaranteeType,
           guarantee_detail: data.guarantee_detail,
           form_purchased: data.form_purchased,
-          form_cost: 2.0,
+          form_cost: data.form_cost,
           loan_code: `${data.loan_type.toUpperCase()}-${Date.now()}`,
           loan_number: nextLoanNumber,
           capital_at_time: junta.current_capital,
@@ -269,7 +271,7 @@ export class PrestamosService {
 
       // Update payment schedule status
       await this.updatePaymentScheduleStatuses(
-        prisma,
+        prisma as PrismaClient,
         prestamo,
         amount,
         totalPaid,
@@ -495,53 +497,149 @@ export class PrestamosService {
     );
   }
 
+  // private async updatePaymentScheduleStatuses(
+  //   prisma: any,
+  //   prestamo: any,
+  //   currentPaymentAmount: number,
+  //   totalPaidAmount: number,
+  // ) {
+  //   let remainingPayment = currentPaymentAmount;
+  //   const today = new Date();
+
+  //   console.log('totalPaidAmount: ', totalPaidAmount);
+
+  //   for (const scheduleItem of prestamo.paymentSchedule) {
+  //     if (scheduleItem.status === PaymentScheduleStatus.PAID) {
+  //       continue;
+  //     }
+  //     console.log('scheduleItem: ', scheduleItem);
+
+  //     if (remainingPayment >= scheduleItem.expected_amount) {
+  //       // Full payment for this installment
+  //       await prisma.paymentSchedule.update({
+  //         where: { id: scheduleItem.id },
+  //         data: { status: PaymentScheduleStatus.PAID },
+  //       });
+  //       remainingPayment -= scheduleItem.expected_amount;
+  //     } else if (remainingPayment > 0) {
+  //       // Partial payment
+  //       const remainingAmount = scheduleItem.expected_amount - remainingPayment;
+  //       // const newPrincipal = scheduleItem.principal - remainingPayment;
+  //       await prisma.paymentSchedule.update({
+  //         where: { id: scheduleItem.id },
+  //         data: {
+  //           status: PaymentScheduleStatus.PARTIAL,
+  //           expected_amount: remainingAmount,
+  //           // principal: scheduleItem.principal - remainingPayment,
+  //           // principal: newPrincipal,
+  //         },
+  //       });
+  //       if (remainingAmount > 0) {
+  //         remainingPayment = remainingPayment - remainingAmount;
+  //       } else {
+  //         remainingPayment = 0;
+  //       }
+  //     } else if (scheduleItem.due_date < today) {
+  //       // Past due date without payment
+  //       await prisma.paymentSchedule.update({
+  //         where: { id: scheduleItem.id },
+  //         data: { status: PaymentScheduleStatus.OVERDUE },
+  //       });
+  //     }
+  //   }
+  // }
+
   private async updatePaymentScheduleStatuses(
-    prisma: any,
-    prestamo: any,
+    prisma: PrismaClient,
+    prestamo: { paymentSchedule: PaymentSchedule[] },
     currentPaymentAmount: number,
     totalPaidAmount: number,
-  ) {
+  ): Promise<void> {
     let remainingPayment = currentPaymentAmount;
     const today = new Date();
 
-    console.log('totalPaidAmount: ', totalPaidAmount);
+    console.log(
+      'Processing payment update - Total paid amount:',
+      totalPaidAmount,
+    );
 
     for (const scheduleItem of prestamo.paymentSchedule) {
+      // Skip already paid installments
       if (scheduleItem.status === PaymentScheduleStatus.PAID) {
         continue;
       }
-      console.log('scheduleItem: ', scheduleItem);
 
-      if (remainingPayment >= scheduleItem.expected_amount) {
-        // Full payment for this installment
-        await prisma.paymentSchedule.update({
-          where: { id: scheduleItem.id },
-          data: { status: PaymentScheduleStatus.PAID },
-        });
-        remainingPayment -= scheduleItem.expected_amount;
-      } else if (remainingPayment > 0) {
-        // Partial payment
-        const remainingAmount = scheduleItem.expected_amount - remainingPayment;
-        await prisma.paymentSchedule.update({
-          where: { id: scheduleItem.id },
-          data: {
-            status: PaymentScheduleStatus.PARTIAL,
-            expected_amount: remainingAmount,
-          },
-        });
-        if (remainingAmount > 0) {
-          remainingPayment = remainingPayment - remainingAmount;
-        } else {
-          remainingPayment = 0;
+      console.log('Processing schedule item:', {
+        id: scheduleItem.id,
+        expected: scheduleItem.expected_amount,
+        remaining: remainingPayment,
+      });
+
+      try {
+        if (remainingPayment >= scheduleItem.expected_amount) {
+          // Full payment case
+          await this.processFullPayment(prisma, scheduleItem);
+          remainingPayment -= scheduleItem.expected_amount;
+        } else if (remainingPayment > 0) {
+          // Partial payment case
+          remainingPayment = await this.processPartialPayment(
+            prisma,
+            scheduleItem,
+            remainingPayment,
+          );
+        } else if (scheduleItem.due_date < today) {
+          // Overdue case
+          await this.processOverduePayment(prisma, scheduleItem);
         }
-      } else if (scheduleItem.due_date < today) {
-        // Past due date without payment
-        await prisma.paymentSchedule.update({
-          where: { id: scheduleItem.id },
-          data: { status: PaymentScheduleStatus.OVERDUE },
+      } catch (error) {
+        console.error('Error processing payment schedule item:', {
+          scheduleItemId: scheduleItem.id,
+          error: error.message,
         });
+        throw new Error(`Failed to update payment schedule: ${error.message}`);
       }
     }
+  }
+
+  private async processFullPayment(
+    prisma: PrismaClient,
+    scheduleItem: PaymentSchedule,
+  ): Promise<void> {
+    await prisma.paymentSchedule.update({
+      where: { id: scheduleItem.id },
+      data: { status: PaymentScheduleStatus.PAID },
+    });
+  }
+
+  private async processPartialPayment(
+    prisma: PrismaClient,
+    scheduleItem: PaymentSchedule,
+    remainingPayment: number,
+  ): Promise<number> {
+    const remainingAmount = Math.max(
+      scheduleItem.expected_amount - remainingPayment,
+      0,
+    );
+
+    await prisma.paymentSchedule.update({
+      where: { id: scheduleItem.id },
+      data: {
+        status: PaymentScheduleStatus.PARTIAL,
+        expected_amount: remainingAmount,
+      },
+    });
+
+    return remainingAmount > 0 ? remainingPayment - remainingAmount : 0;
+  }
+
+  private async processOverduePayment(
+    prisma: PrismaClient,
+    scheduleItem: PaymentSchedule,
+  ): Promise<void> {
+    await prisma.paymentSchedule.update({
+      where: { id: scheduleItem.id },
+      data: { status: PaymentScheduleStatus.OVERDUE },
+    });
   }
 
   async validatePayment(
