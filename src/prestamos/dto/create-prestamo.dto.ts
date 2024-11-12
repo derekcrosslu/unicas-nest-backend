@@ -63,6 +63,10 @@ export class CreatePrestamoDto {
   @IsBoolean()
   form_purchased: boolean;
 
+  @ApiProperty({ description: 'Form fee' })
+  @IsNumber()
+  form_cost: number;
+
   @ApiProperty({ description: 'Date of the loan request' })
   @IsString()
   request_date: string;

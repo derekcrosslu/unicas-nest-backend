@@ -81,6 +81,15 @@ export class MultasService {
       throw new ForbiddenException('User is not a member of this junta');
     }
 
+    await this.prisma.junta.update({
+      where: { id: juntaId },
+      data: {
+        current_capital: { increment: amount },
+        base_capital: { increment: amount },
+        available_capital: { increment: amount },
+      },
+    });
+
     return this.prisma.multa.create({
       data: {
         amount,
@@ -202,6 +211,15 @@ export class MultasService {
         'You do not have permission to delete this multa',
       );
     }
+
+    await this.prisma.junta.update({
+      where: { id: multa.juntaId },
+      data: {
+        current_capital: { decrement: multa.amount },
+        base_capital: { decrement: multa.amount },
+        available_capital: { decrement: multa.amount },
+      },
+    });
 
     await this.prisma.multa.delete({
       where: { id },

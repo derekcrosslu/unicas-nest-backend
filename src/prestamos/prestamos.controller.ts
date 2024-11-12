@@ -75,6 +75,7 @@ export class PrestamosController {
     @Body() data: CreatePrestamoDto,
     @Request() req: RequestWithUser,
   ): Promise<PrestamoResponse> {
+    console.log('data: ', data);
     return this.prestamosService.create(data, req.user.id, req.user.role);
   }
 
@@ -160,6 +161,7 @@ export class PrestamosController {
     @Param('id') id: string,
     @Request() req: RequestWithUser,
   ) {
+    console.log('getRemainingPayments id: ', id);
     return this.prestamosService.getRemainingPayments(
       id,
       req.user.id,
