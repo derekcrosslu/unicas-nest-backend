@@ -23,7 +23,7 @@ GET {{baseUrl}}/members/junta/{{juntaId}}
 Authorization: Bearer {{authToken}}
 
 ### Store the junta ID from create response
-@juntaId = 49a5fc02-8ae3-47d2-84b9-5d12408928c1
+@juntaId = 3b7beb91-9844-4a10-84b1-3055c5643aa8
 
 ### Store the member ID from create response
 @memberId = 64b0d2d8-b0fd-4d53-89a7-b76c21ded612
@@ -78,4 +78,153 @@ Content-Type: application/json
 
 ### Get all pagos
 GET {{baseUrl}}/prestamos/junta/{{juntaId}}/pagos
+Authorization: Bearer {{authToken}}
+
+
+
+
+### Create Agenda
+POST {{baseUrl}}/agenda
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "juntaId": "3b7beb91-9844-4a10-84b1-3055c5643aa8",
+    "title": "Asamblea 2",
+    "description": "Reunión ordinaria",
+    "date": "2024-11-18T15:00:00.000Z"
+}
+
+###
+@agendaItemId = "645c2d66-1c6f-4205-8976-aca69012abbe"
+
+
+#### Get Attendance
+GET {{baseUrl}}/attendance/list?juntaId={{juntaId}}&startDate=2024-11-18&endDate=2024-11-24
+Authorization: Bearer {{authToken}}
+
+
+### Attendance Mark
+# @name attendanceMark
+POST {{baseUrl}}/attendance/mark
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "memberId": "5edd164b-caf7-49eb-a0c4-547d2bdbfc02",
+    "agendaItemId": "645c2d66-1c6f-4205-8976-aca69012abbe",
+    "asistio": true
+}
+
+
+
+### Get all agenda items for a junta
+GET {{baseUrl}}/agenda/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+### Create Attendance schedule
+# @name attendanceSchedule
+POST {{baseUrl}}/schedule
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "juntaId": "3b7beb91-9844-4a10-84b1-3055c5643aa8",
+    "name": "Weekly Member Meeting",
+    "frequency": "WEEKLY",
+    "startDate": "2024-11-18T00:00:00Z",
+    "weeklySchedules": [
+    {
+      "dayOfWeek": 1,
+      "startTime": "2024-11-18T15:00:00Z"
+    }
+  ]
+}
+
+
+### Get all schedules
+GET {{baseUrl}}/schedule/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+
+
+###  Generate Agenda Items
+POST {{baseUrl}}/schedule
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+    "juntaId": "{{juntaId}}",
+    "name": "Weekly Member Meetings",
+    "frequency": "WEEKLY",
+    "startDate": "2024-11-18T00:00:00Z",
+    "weeklySchedules": [
+        {
+            "dayOfWeek": 1,
+            "startTime": "2024-11-18T15:00:00Z"
+        },
+        {
+            "dayOfWeek": 2,
+            "startTime": "2024-11-19T15:00:00Z"
+        },
+                {
+            "dayOfWeek": 3,
+            "startTime": "2024-11-20T15:00:00Z"
+        },
+                {
+            "dayOfWeek": 4,
+            "startTime": "2024-11-21T15:00:00Z"
+        },
+                {
+            "dayOfWeek": 5,
+            "startTime": "2024-11-22T15:00:00Z"
+        },
+                {
+            "dayOfWeek": 6,
+            "startTime": "2024-11-23T15:00:00Z"
+        },
+                {
+            "dayOfWeek": 7,
+            "startTime": "2024-11-24T15:00:00Z"
+        }
+
+    ]
+}
+
+###
+@schedule_id = "306059a9-04f5-433e-99f8-f5fda3e8e8d0"
+
+### Generate agenda items for a date range:
+# @name attendanceScheduleGenerate
+POST {{baseUrl}}/schedule/{{schedule_id}}/generate
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "startDate": "2024-11-18T00:00:00Z",
+    "endDate": "2024-11-24T00:00:00Z"
+}
+
+### Delete Schedule
+DELETE {{baseUrl}}/schedule/{{schedule_id}}
+Authorization: Bearer {{authToken}}
+
+### Get Schedule using a date range
+GET {{baseUrl}}/schedule/junta/{{juntaId}}/range?startDate=2024-11-18&endDate=2024-11-24
+Authorization: Bearer {{authToken}}
+
+
+# @schedule_id = "745887db-f1d8-4f3b-a806-be5edddf8677"
+####
+POST {{baseUrl}}/schedule/{{schedule_id}}/generate
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "startDate": "2024-11-18T00:00:00.000Z",
+    "endDate": "2024-11-24T23:59:59.999Z"
+}
+
+####
+GET {{baseUrl}}/schedule/junta/{{juntaId}}
 Authorization: Bearer {{authToken}}

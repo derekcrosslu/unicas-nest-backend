@@ -49,7 +49,6 @@ export class AgendaController {
       req.user.role,
     );
   }
-
   @Get('junta/:juntaId')
   @ApiOperation({ summary: 'Get all agenda items for a junta' })
   async findByJunta(

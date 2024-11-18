@@ -7,6 +7,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Schedule {
+  id            String   @id @default(uuid())
+  juntaId       String
+  name          String
+  frequency     String   // WEEKLY, MONTHLY
+  startDate     DateTime
+  endDate       DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  junta         Junta    @relation(fields: [juntaId], references: [id])
+  weeklySchedules WeeklySchedule[]
+
+  @@index([juntaId])
+}
+
+model WeeklySchedule {
+  id          String   @id @default(uuid())
+  scheduleId  String
+  dayOfWeek   Int      // 1-7 for Monday-Sunday
+  startTime   DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  schedule    Schedule @relation(fields: [scheduleId], references: [id])
+  agendaItems AgendaItem[]
+
+  @@index([scheduleId])
+}
+
 model PaymentSchedule {
   id                String      @id @default(uuid())
   due_date         DateTime
@@ -54,36 +85,21 @@ model PrestamoNew {
   payment_type          String            @map("payment_type")
   reason                String
   loan_type             String            @map("loan_type")
+  agendaItemId          String?
+
   capital_movements     CapitalMovement[]
   pagos                 PagoPrestamoNew[]
-  paymentSchedule       PaymentSchedule[] // Add this line
+  paymentSchedule       PaymentSchedule[]
   aval                  User?             @relation("Aval", fields: [avalId], references: [id])
   junta                 Junta             @relation(fields: [juntaId], references: [id])
   member                User              @relation(fields: [memberId], references: [id])
+  agendaItem           AgendaItem?       @relation(fields: [agendaItemId], references: [id])
 
   @@unique([juntaId, loan_number])
-}
-
-model CapitalMovement {
-  id          String           @id @default(uuid())
-  amount      Float
-  type        String
-  direction   String
-  description String?
-  createdAt   DateTime         @default(now())
-  juntaId     String
-  prestamoId  String?
-  multaId     String?
-  accionId    String?
-  pagoId      String?
-  accion      Accion?          @relation(fields: [accionId], references: [id])
-  junta       Junta            @relation(fields: [juntaId], references: [id])
-  multa       Multa?           @relation(fields: [multaId], references: [id])
-  pago        PagoPrestamoNew? @relation(fields: [pagoId], references: [id])
-  prestamo    PrestamoNew?     @relation(fields: [prestamoId], references: [id])
-
-  @@index([juntaId, createdAt])
-  @@index([type, direction])
+  @@index([agendaItemId])
+  @@index([memberId])
+  @@index([avalId])
+  @@index([juntaId])
 }
 
 model Accion {
@@ -97,11 +113,16 @@ model Accion {
   juntaId           String
   memberId          String
   affects_capital   Boolean           @default(true) @map("affects_capital")
+  agendaItemId      String?
+  
   junta             Junta             @relation(fields: [juntaId], references: [id])
   member            User              @relation(fields: [memberId], references: [id])
   capital_movements CapitalMovement[]
+  agendaItem        AgendaItem?       @relation(fields: [agendaItemId], references: [id])
 
   @@index([juntaId, createdAt])
+  @@index([memberId])
+  @@index([agendaItemId])
 }
 
 model Multa {
@@ -114,9 +135,16 @@ model Multa {
   juntaId           String
   memberId          String
   affects_capital   Boolean           @default(true) @map("affects_capital")
+  agendaItemId      String?
+
   capital_movements CapitalMovement[]
   junta             Junta             @relation(fields: [juntaId], references: [id])
   member            User              @relation(fields: [memberId], references: [id])
+  agendaItem        AgendaItem?       @relation(fields: [agendaItemId], references: [id])
+
+  @@index([juntaId])
+  @@index([memberId])
+  @@index([agendaItemId])
 }
 
 model PagoPrestamoNew {
@@ -126,32 +154,54 @@ model PagoPrestamoNew {
   prestamoId        String
   original_pago_id  String?           @map("original_pago_id")
   affects_capital   Boolean           @default(true) @map("affects_capital")
+  agendaItemId      String?
+
   capital_movements CapitalMovement[]
   prestamo          PrestamoNew       @relation(fields: [prestamoId], references: [id])
+  agendaItem        AgendaItem?       @relation(fields: [agendaItemId], references: [id])
 
+  @@index([prestamoId])
   @@index([original_pago_id])
+  @@index([agendaItemId])
 }
 
-model Junta {
-  id                String            @id @default(uuid())
-  name              String
-  description       String?
-  fecha_inicio      DateTime          @map("fecha_inicio")
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  createdById       String
-  available_capital Float             @default(0) @map("available_capital")
-  base_capital      Float             @default(0) @map("base_capital")
-  current_capital   Float             @default(0) @map("current_capital")
-  acciones          Accion[]
-  agenda            AgendaItem[]
-  capital_movements CapitalMovement[]
-  capital           CapitalSocial?
-  createdBy         User              @relation("CreatedBy", fields: [createdById], references: [id])
-  members           JuntaMember[]
-  multas            Multa[]
-  prestamos         Prestamo[]
-  prestamos_new     PrestamoNew[]
+model AgendaItem {
+  id          String            @id @default(uuid())
+  title       String
+  description String?
+  date        DateTime
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  juntaId     String
+  scheduleId  String?
+  
+  junta       Junta             @relation(fields: [juntaId], references: [id])
+  schedule    WeeklySchedule?   @relation(fields: [scheduleId], references: [id])
+  asistencias Asistencia[]
+  multas      Multa[]           
+  acciones    Accion[]          
+  prestamos   PrestamoNew[]     
+  pagos       PagoPrestamoNew[]
+  users       User[]            @relation("UserAgendaItems")
+
+  @@index([juntaId])
+  @@index([scheduleId])
+}
+
+model Asistencia {
+  id           String     @id @default(uuid())
+  asistio      Boolean    @default(false)
+  fecha        DateTime
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  agendaItemId String
+  userId       String
+
+  agendaItem   AgendaItem @relation(fields: [agendaItemId], references: [id])
+  user         User       @relation(fields: [userId], references: [id])
+
+  @@index([agendaItemId])
+  @@index([userId])
 }
 
 model User {
@@ -179,6 +229,7 @@ model User {
   member_role                 String?       @map("member_role")
   productive_activity         String?       @map("productive_activity")
   status                      String        @default("Activo")
+
   acciones                    Accion[]
   createdJuntas               Junta[]       @relation("CreatedBy")
   memberJuntas                JuntaMember[]
@@ -186,6 +237,8 @@ model User {
   prestamos                   Prestamo[]
   avalPrestamos               PrestamoNew[] @relation("Aval")
   prestamos_new               PrestamoNew[]
+  agendaItems                 AgendaItem[]  @relation("UserAgendaItems")
+  asistencias                 Asistencia[]
 }
 
 model JuntaMember {
@@ -193,21 +246,39 @@ model JuntaMember {
   juntaId  String
   userId   String
   joinedAt DateTime @default(now())
+  
   junta    Junta    @relation(fields: [juntaId], references: [id])
   user     User     @relation(fields: [userId], references: [id])
 
   @@unique([juntaId, userId])
+  @@index([juntaId])
+  @@index([userId])
 }
 
-model AgendaItem {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  date        DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  juntaId     String
-  junta       Junta    @relation(fields: [juntaId], references: [id])
+model Junta {
+  id                String            @id @default(uuid())
+  name              String
+  description       String?
+  fecha_inicio      DateTime          @map("fecha_inicio")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  createdById       String
+  available_capital Float             @default(0) @map("available_capital")
+  base_capital      Float             @default(0) @map("base_capital")
+  current_capital   Float             @default(0) @map("current_capital")
+
+  acciones          Accion[]
+  agenda            AgendaItem[]
+  capital_movements CapitalMovement[]
+  capital           CapitalSocial?
+  createdBy         User              @relation("CreatedBy", fields: [createdById], references: [id])
+  members           JuntaMember[]
+  multas            Multa[]
+  prestamos         Prestamo[]
+  prestamos_new     PrestamoNew[]
+  schedules         Schedule[]
+
+  @@index([createdById])
 }
 
 model CapitalSocial {
@@ -215,7 +286,8 @@ model CapitalSocial {
   amount    Float            @default(0)
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
-  juntaId   String           @unique
+  juntaId   String          @unique
+
   junta     Junta            @relation(fields: [juntaId], references: [id])
   gastos    GastoCapital[]
   ingresos  IngresoCapital[]
@@ -227,7 +299,10 @@ model IngresoCapital {
   description     String
   date            DateTime      @default(now())
   capitalSocialId String
+  
   capitalSocial   CapitalSocial @relation(fields: [capitalSocialId], references: [id])
+
+  @@index([capitalSocialId])
 }
 
 model GastoCapital {
@@ -236,7 +311,37 @@ model GastoCapital {
   description     String
   date            DateTime      @default(now())
   capitalSocialId String
+  
   capitalSocial   CapitalSocial @relation(fields: [capitalSocialId], references: [id])
+
+  @@index([capitalSocialId])
+}
+
+model CapitalMovement {
+  id          String           @id @default(uuid())
+  amount      Float
+  type        String
+  direction   String
+  description String?
+  createdAt   DateTime         @default(now())
+  juntaId     String
+  prestamoId  String?
+  multaId     String?
+  accionId    String?
+  pagoId      String?
+
+  accion      Accion?          @relation(fields: [accionId], references: [id])
+  junta       Junta            @relation(fields: [juntaId], references: [id])
+  multa       Multa?           @relation(fields: [multaId], references: [id])
+  pago        PagoPrestamoNew? @relation(fields: [pagoId], references: [id])
+  prestamo    PrestamoNew?     @relation(fields: [prestamoId], references: [id])
+
+  @@index([juntaId, createdAt])
+  @@index([type, direction])
+  @@index([prestamoId])
+  @@index([multaId])
+  @@index([accionId])
+  @@index([pagoId])
 }
 
 model Prestamo {
@@ -248,9 +353,13 @@ model Prestamo {
   updatedAt   DateTime       @updatedAt
   juntaId     String
   memberId    String
+
   pagos       PagoPrestamo[]
   junta       Junta          @relation(fields: [juntaId], references: [id])
   member      User           @relation(fields: [memberId], references: [id])
+
+  @@index([juntaId])
+  @@index([memberId])
 }
 
 model PagoPrestamo {
@@ -258,7 +367,8 @@ model PagoPrestamo {
   amount     Float
   date       DateTime @default(now())
   prestamoId String
+  
   prestamo   Prestamo @relation(fields: [prestamoId], references: [id])
+
+  @@index([prestamoId])
 }
-
-
