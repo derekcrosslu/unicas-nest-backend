@@ -22,6 +22,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { CreatePrestamoDto } from './dto/create-prestamo.dto';
+import { CleanUuidPipe } from '../decorators/clean-uuid.decorator';
 
 interface RequestWithUser extends Request {
   user: {
@@ -158,10 +159,10 @@ export class PrestamosController {
     },
   })
   async getRemainingPayments(
-    @Param('id') id: string,
+    @Param('id', new CleanUuidPipe()) id: string,
     @Request() req: RequestWithUser,
   ) {
-    console.log('getRemainingPayments id: ', id);
+    console.log('getRemainingPayments id from controller: ', id);
     return this.prestamosService.getRemainingPayments(
       id,
       req.user.id,

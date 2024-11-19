@@ -9,13 +9,17 @@ import {
   UseGuards,
   Query,
   BadRequestException,
+  NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { ScheduleService } from './schedule.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CleanUuidPipe } from '../decorators/clean-uuid.decorator';
 
 @Controller('schedule')
 @UseGuards(JwtAuthGuard)
 export class ScheduleController {
+  private readonly logger = new Logger(ScheduleController.name);
   constructor(private readonly scheduleService: ScheduleService) {}
 
   @Post()
@@ -81,6 +85,24 @@ export class ScheduleController {
   @Get('junta/:juntaId')
   async getJuntaSchedules(@Param('juntaId') juntaId: string) {
     return this.scheduleService.getJuntaSchedules(juntaId);
+  }
+
+  @Get('debug/all')
+  async debugSchedules() {
+    return this.scheduleService.debugSchedules();
+  }
+
+  @Get(':id')
+  async getSchedule(@Param('id', new CleanUuidPipe()) id: string) {
+    this.logger.debug(`Fetching schedule with ID: ${JSON.stringify(id)}`);
+
+    const schedule = await this.scheduleService.getSchedule(id);
+
+    if (!schedule) {
+      throw new NotFoundException(`Schedule not found`);
+    }
+
+    return schedule;
   }
 
   @Get('junta/:juntaId/range')
@@ -174,7 +196,9 @@ export class ScheduleController {
   }
 
   @Delete(':scheduleId')
-  async deleteSchedule(@Param('scheduleId') scheduleId: string) {
+  async deleteSchedule(
+    @Param('scheduleId', new CleanUuidPipe()) scheduleId: string,
+  ) {
     return this.scheduleService.deleteSchedule(scheduleId);
   }
 }

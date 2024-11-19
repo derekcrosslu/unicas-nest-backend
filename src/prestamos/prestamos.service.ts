@@ -740,6 +740,7 @@ export class PrestamosService {
   }
 
   async getRemainingPayments(id: string, userId: string, userRole: UserRole) {
+     console.log('getRemainingPayments id from service: ', id);
     const prestamo = await this.prisma.prestamoNew.findUnique({
       where: { id },
       include: {

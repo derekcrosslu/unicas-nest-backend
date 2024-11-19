@@ -6,7 +6,9 @@ import { ConfigService } from '@nestjs/config';
 import { json } from 'express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'debug', 'log'],
+  });
   const configService = app.get(ConfigService);
 
   // Enable CORS with specific configuration

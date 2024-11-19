@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ScheduleService {
+  private readonly logger = new Logger(ScheduleService.name);
   constructor(private prisma: PrismaService) {}
 
   async createSchedule(data: {
@@ -56,6 +57,77 @@ export class ScheduleService {
     });
   }
 
+  async debugSchedules() {
+    try {
+      // 1. Raw SQL query
+      const rawResult = await this.prisma.$queryRaw`
+        SELECT * FROM "Schedule" 
+        WHERE id = '306059a9-04f5-433e-99f8-f5fda3e8e8d0'
+      `;
+      this.logger.debug('Raw query result:', rawResult);
+
+      // 2. Count all schedules
+      const totalSchedules = await this.prisma.schedule.count();
+      this.logger.debug('Total schedules:', totalSchedules);
+
+      // 3. Find all schedules with their relations
+      const allSchedules = await this.prisma.schedule.findMany({
+        include: {
+          weeklySchedules: true,
+          junta: true,
+        },
+      });
+      this.logger.debug('All schedules count:', allSchedules.length);
+
+      // 4. Get specific schedule with debug info
+      const specificSchedule = await this.prisma.schedule.findUnique({
+        where: {
+          id: '306059a9-04f5-433e-99f8-f5fda3e8e8d0',
+        },
+        include: {
+          weeklySchedules: true,
+        },
+      });
+      this.logger.debug('Specific schedule:', specificSchedule);
+
+      // 5. List all schedule IDs
+      const scheduleIds = await this.prisma.schedule.findMany({
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+      this.logger.debug('All schedule IDs:', scheduleIds);
+
+      return {
+        totalSchedules,
+        scheduleIds,
+        rawResult,
+        specificSchedule,
+      };
+    } catch (error) {
+      this.logger.error('Database query error:', error);
+      throw error;
+    }
+  }
+
+  async getSchedule(id: string) {
+    const schedule = await this.prisma.schedule.findUnique({
+      where: {
+        id: id,
+      },
+      include: {
+        weeklySchedules: {
+          orderBy: {
+            dayOfWeek: 'asc',
+          },
+        },
+      },
+    });
+
+    return schedule;
+  }
+
   async generateAgendaItems(
     scheduleId: string,
     startDate: Date,
@@ -103,7 +175,7 @@ export class ScheduleService {
           description: 'Automatically generated from schedule',
           date: meetingDate,
           juntaId: schedule.juntaId,
-          scheduleId: schedule.id,
+          scheduleId: weeklySchedule.id,
         });
       }
 
@@ -117,7 +189,11 @@ export class ScheduleService {
         this.prisma.agendaItem.create({
           data: item,
           include: {
-            schedule: true,
+            schedule: {
+              include: {
+                schedule: true,
+              },
+            },
           },
         }),
       ),
@@ -196,7 +272,9 @@ export class ScheduleService {
   }
 
   async deleteSchedule(scheduleId: string) {
-    console.log("scheduleId: ", scheduleId);
+    console.log('Attempting to delete schedule:', scheduleId);
+
+    // First check if the schedule exists
     const schedule = await this.prisma.schedule.findUnique({
       where: { id: scheduleId },
       include: {
@@ -204,24 +282,41 @@ export class ScheduleService {
       },
     });
 
+    console.log('Found schedule:', schedule);
+
     if (!schedule) {
       throw new NotFoundException('Schedule not found');
     }
 
-    return this.prisma.$transaction([
-      this.prisma.agendaItem.deleteMany({
-        where: {
-          scheduleId: scheduleId,
-        },
-      }),
-      this.prisma.weeklySchedule.deleteMany({
-        where: {
-          scheduleId,
-        },
-      }),
-      this.prisma.schedule.delete({
-        where: { id: scheduleId },
-      }),
-    ]);
+    // Get all weekly schedule IDs
+    const weeklyScheduleIds = schedule.weeklySchedules.map((ws) => ws.id);
+
+    // Delete in a transaction to ensure all related records are removed
+    try {
+      const result = await this.prisma.$transaction([
+        // First delete agenda items linked to any of the weekly schedules
+        this.prisma.agendaItem.deleteMany({
+          where: {
+            scheduleId: {
+              in: weeklyScheduleIds,
+            },
+          },
+        }),
+        // Then delete all weekly schedules
+        this.prisma.weeklySchedule.deleteMany({
+          where: { scheduleId },
+        }),
+        // Finally delete the schedule itself
+        this.prisma.schedule.delete({
+          where: { id: scheduleId },
+        }),
+      ]);
+
+      console.log('Delete result:', result);
+      return { message: 'Schedule and related records deleted successfully' };
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
+      throw new Error(`Failed to delete schedule: ${error.message}`);
+    }
   }
 }

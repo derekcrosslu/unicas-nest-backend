@@ -192,7 +192,7 @@ Authorization: Bearer {{authToken}}
 }
 
 ###
-@schedule_id = "306059a9-04f5-433e-99f8-f5fda3e8e8d0"
+@schedule_id = "7f2282ce-6253-4018-9e80-8563156427da"
 
 ### Generate agenda items for a date range:
 # @name attendanceScheduleGenerate
@@ -204,6 +204,17 @@ Content-Type: application/json
     "startDate": "2024-11-18T00:00:00Z",
     "endDate": "2024-11-24T00:00:00Z"
 }
+
+### Debug Schedule
+GET {{baseUrl}}/schedule/debug/all
+Authorization: Bearer {{authToken}}
+
+### Get Schedule
+GET {{baseUrl}}/schedule/{{schedule_id}}
+Authorization: Bearer {{authToken}}
+
+# ###
+# @schedule_id = "745887db-f1d8-4f3b-a806-be5edddf8677"
 
 ### Delete Schedule
 DELETE {{baseUrl}}/schedule/{{schedule_id}}
@@ -227,4 +238,13 @@ Content-Type: application/json
 
 ####
 GET {{baseUrl}}/schedule/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+@prestamoId = 'da6c42e4-d2b6-4b54-8937-d77e61d2fb63'
+###
+GET {{baseUrl}}/prestamos/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+###
+GET {{baseUrl}}/prestamos/{{prestamoId}}/remaining-payments
 Authorization: Bearer {{authToken}}
