@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -69,3 +70,4 @@ export class UsersController {
     return { status: 'ok' };
   }
 }
+ 

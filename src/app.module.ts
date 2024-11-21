@@ -18,7 +18,6 @@ import { CapitalModule } from './capital/capital.module';
 import { Reflector } from '@nestjs/core';
 import { JuntaPaymentModule } from './junta-payment/junta-payment.module';
 import { AttendanceModule } from './attendance/attendance.module';
-import { ScheduleModule } from './schedule/schedule.module';
 
 @Module({
   imports: [
@@ -38,7 +37,6 @@ import { ScheduleModule } from './schedule/schedule.module';
     CapitalModule,
     JuntaPaymentModule,
     AttendanceModule,
-    ScheduleModule,
   ],
   controllers: [AppController],
   providers: [

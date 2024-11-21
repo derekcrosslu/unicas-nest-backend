@@ -1,0 +1,96 @@
+@baseUrl = http://localhost:3000/api
+
+### Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "phone": "912345678",
+    "password": "123123"
+}
+
+@authToken = {{login.response.body.access_token}}
+
+### Get juntas
+# @name juntas
+GET {{baseUrl}}/juntas
+Authorization: Bearer {{authToken}}
+
+@juntaId = {{juntas.response.body.$.[0].$.id}}
+
+### Get members
+# @name members
+GET {{baseUrl}}/members/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+@memberId = {{members.response.body.$.[1].$.id}}
+
+### Create Agenda Item
+POST {{baseUrl}}/agenda
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "title": "Weekly Meeting",
+    "description": "Regular team sync",
+    "date": "2024-11-25",
+    "juntaId": "{{juntaId}}"
+}
+
+### Get Created Agenda Item
+# @name agendaItems
+GET {{baseUrl}}/agenda/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+@agendaItemId = {{agendaItems.response.body.$.[0].$.id}}
+@dayScheduleId = {{agendaItems.response.body.$.[0].$.daySchedules[1].$.id}}
+
+### Mark Attendance for Created Agenda
+POST {{baseUrl}}/attendance/mark
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "userId": "{{memberId}}",
+    "agendaItemId": "{{agendaItemId}}",
+    "dayScheduleId": "{{dayScheduleId}}",
+    "attended": true
+}
+
+### Get Agenda Items
+# @name agendaItems
+GET {{baseUrl}}/agenda/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+@agendaItemId = {{agendaItems.response.body.$.[0].$.id}}
+@dayScheduleId = {{agendaItems.response.body.$.[0].$.daySchedules[0].$.id}}
+
+
+### Mark Attendance for monday
+POST {{baseUrl}}/attendance/mark
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "userId": "{{memberId}}",
+    "agendaItemId": "{{agendaItemId}}",
+    "dayScheduleId": "{{dayScheduleId}}",
+    "attended": true
+}
+
+### Mark Attendance for tuesday
+POST {{baseUrl}}/attendance/mark
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "userId": "495c40f1-a9b6-4b57-92f9-1623923fe790",
+    "agendaItemId": "d9d53fed-b815-40af-8a63-3802db705547",
+    "dayScheduleId": "2721e41d-7809-4c9c-b405-61cde655fae5",
+    "attended": true
+}
+
+### Get Attendance List
+GET {{baseUrl}}/attendance/list?juntaId={{juntaId}}&startDate=2024-11-25&endDate=2024-12-01
+Authorization: Bearer {{authToken}}

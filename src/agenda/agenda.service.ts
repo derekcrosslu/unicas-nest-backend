@@ -18,71 +18,107 @@ export class AgendaService {
     userId: string,
     userRole: UserRole,
   ) {
-    // Check if user has permission to create agenda items
     const junta = await this.prisma.junta.findUnique({
       where: { id: juntaId },
-      include: {
-        members: true,
-      },
+      include: { members: true },
     });
 
-    if (!junta) {
-      throw new NotFoundException('Junta not found');
-    }
+    if (!junta) throw new NotFoundException('Junta not found');
 
     const hasPermission =
       userRole === 'ADMIN' ||
       (userRole === 'FACILITATOR' && junta.createdById === userId);
 
     if (!hasPermission) {
-      throw new ForbiddenException(
-        'You do not have permission to create agenda items in this junta',
-      );
+      throw new ForbiddenException('No permission to create agenda items');
     }
+
+    const startDate = new Date(date);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
 
     return this.prisma.agendaItem.create({
       data: {
         title,
         description,
-        date: new Date(date),
+        weekStartDate: startDate,
+        weekEndDate: endDate,
         juntaId,
+        daySchedules: {
+          create: Array.from({ length: 7 }, (_, index) => {
+            const scheduleDate = new Date(startDate);
+            scheduleDate.setDate(startDate.getDate() + index);
+            return {
+              dayOfWeek: [
+                'MONDAY',
+                'TUESDAY',
+                'WEDNESDAY',
+                'THURSDAY',
+                'FRIDAY',
+                'SATURDAY',
+                'SUNDAY',
+              ][index],
+              startTime: new Date(scheduleDate.setHours(9, 0, 0)),
+              endTime: new Date(scheduleDate.setHours(10, 0, 0)),
+            };
+          }),
+        },
       },
       include: {
         junta: true,
+        daySchedules: true,
+        dailyAttendance: {
+          include: { user: true },
+        },
+      },
+    });
+  }
+
+  async findAll(juntaId: string, filter?: any) {
+    return this.prisma.agendaItem.findMany({
+      where: {
+        juntaId,
+        ...filter,
+      },
+      orderBy: {
+        weekStartDate: 'asc',
+      },
+      include: {
+        daySchedules: true,
+        dailyAttendance: {
+          include: {
+            user: true,
+          },
+        },
       },
     });
   }
 
   async findByJunta(juntaId: string, userId: string, userRole: UserRole) {
-    // Check if user has access to this junta
     const junta = await this.prisma.junta.findUnique({
       where: { id: juntaId },
-      include: {
-        members: true,
-      },
+      include: { members: true },
     });
 
-    if (!junta) {
-      throw new NotFoundException('Junta not found');
-    }
+    if (!junta) throw new NotFoundException('Junta not found');
 
     const hasAccess =
       userRole === 'ADMIN' ||
       (userRole === 'FACILITATOR' && junta.createdById === userId) ||
       junta.members.some((member) => member.userId === userId);
 
-    if (!hasAccess) {
-      throw new ForbiddenException('You do not have access to this junta');
-    }
+    if (!hasAccess) throw new ForbiddenException('No access to this junta');
 
     return this.prisma.agendaItem.findMany({
       where: { juntaId },
       include: {
         junta: true,
+        daySchedules: true,
+        dailyAttendance: {
+          include: { user: true },
+        },
       },
-      orderBy: {
-        date: 'asc',
-      },
+      orderBy: { weekStartDate: 'asc' },
     });
   }
 
@@ -91,19 +127,18 @@ export class AgendaService {
       where: { id },
       include: {
         junta: true,
+        daySchedules: true,
+        dailyAttendance: {
+          include: { user: true },
+        },
       },
     });
 
-    if (!agendaItem) {
-      throw new NotFoundException('Agenda item not found');
-    }
+    if (!agendaItem) throw new NotFoundException('Agenda item not found');
 
-    // Check if user has access to this agenda item's junta
     const junta = await this.prisma.junta.findUnique({
       where: { id: agendaItem.juntaId },
-      include: {
-        members: true,
-      },
+      include: { members: true },
     });
 
     const hasAccess =
@@ -111,11 +146,8 @@ export class AgendaService {
       (userRole === 'FACILITATOR' && junta.createdById === userId) ||
       junta.members.some((member) => member.userId === userId);
 
-    if (!hasAccess) {
-      throw new ForbiddenException(
-        'You do not have access to this agenda item',
-      );
-    }
+    if (!hasAccess)
+      throw new ForbiddenException('No access to this agenda item');
 
     return agendaItem;
   }
@@ -132,25 +164,62 @@ export class AgendaService {
   ) {
     const agendaItem = await this.findOne(id, userId, userRole);
 
-    // Check if user has permission to update agenda items
     const hasPermission =
       userRole === 'ADMIN' ||
       (userRole === 'FACILITATOR' && agendaItem.junta.createdById === userId);
 
     if (!hasPermission) {
-      throw new ForbiddenException(
-        'You do not have permission to update this agenda item',
-      );
+      throw new ForbiddenException('No permission to update this agenda item');
+    }
+
+    const updateData: any = {
+      title: data.title,
+      description: data.description,
+    };
+
+    if (data.date) {
+      const startDate = new Date(data.date);
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6);
+
+      updateData.weekStartDate = startDate;
+      updateData.weekEndDate = endDate;
+
+      // Update day schedules
+      await this.prisma.daySchedule.deleteMany({
+        where: { agendaItemId: id },
+      });
+
+      updateData.daySchedules = {
+        create: Array.from({ length: 7 }, (_, index) => {
+          const scheduleDate = new Date(startDate);
+          scheduleDate.setDate(startDate.getDate() + index);
+          return {
+            dayOfWeek: [
+              'MONDAY',
+              'TUESDAY',
+              'WEDNESDAY',
+              'THURSDAY',
+              'FRIDAY',
+              'SATURDAY',
+              'SUNDAY',
+            ][index],
+            startTime: new Date(scheduleDate.setHours(9, 0, 0)),
+            endTime: new Date(scheduleDate.setHours(10, 0, 0)),
+          };
+        }),
+      };
     }
 
     return this.prisma.agendaItem.update({
       where: { id },
-      data: {
-        ...data,
-        date: data.date ? new Date(data.date) : undefined,
-      },
+      data: updateData,
       include: {
         junta: true,
+        daySchedules: true,
+        dailyAttendance: {
+          include: { user: true },
+        },
       },
     });
   }
@@ -158,21 +227,15 @@ export class AgendaService {
   async remove(id: string, userId: string, userRole: UserRole) {
     const agendaItem = await this.findOne(id, userId, userRole);
 
-    // Check if user has permission to delete agenda items
     const hasPermission =
       userRole === 'ADMIN' ||
       (userRole === 'FACILITATOR' && agendaItem.junta.createdById === userId);
 
     if (!hasPermission) {
-      throw new ForbiddenException(
-        'You do not have permission to delete this agenda item',
-      );
+      throw new ForbiddenException('No permission to delete this agenda item');
     }
 
-    await this.prisma.agendaItem.delete({
-      where: { id },
-    });
-
+    await this.prisma.agendaItem.delete({ where: { id } });
     return { message: 'Agenda item deleted successfully' };
   }
 }

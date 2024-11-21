@@ -1,142 +1,134 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AttendanceService {
   constructor(private prisma: PrismaService) {}
 
-  async getAttendanceList(juntaId: string, startDate: Date, endDate: Date) {
-    const members = await this.prisma.juntaMember.findMany({
-      where: { juntaId },
+  async createAtendanceList(juntaId: string) {
+    const weekStart = new Date('2024-11-18');
+    const weekSchedules = Array.from({ length: 7 }, (_, index) => {
+      const currentDate = new Date(weekStart);
+      currentDate.setDate(weekStart.getDate() + index);
+
+      return {
+        dayOfWeek: [
+          'MONDAY',
+          'TUESDAY',
+          'WEDNESDAY',
+          'THURSDAY',
+          'FRIDAY',
+          'SATURDAY',
+          'SUNDAY',
+        ][index],
+        startTime: new Date(currentDate.setHours(9, 0, 0)),
+        endTime: new Date(currentDate.setHours(10, 0, 0)),
+      };
+    });
+
+    const agendaItem = await this.prisma.agendaItem.create({
+      data: {
+        title: 'Week 1 Meetings',
+        weekStartDate: weekStart,
+        weekEndDate: new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000), // Add 6 days
+        juntaId: juntaId,
+        daySchedules: {
+          create: weekSchedules,
+        },
+      },
       include: {
-        user: true,
+        daySchedules: true,
+      },
+    });
+    return agendaItem;
+  }
+
+  async markAttendance(
+    userId: string,
+    agendaItemId: string,
+    dayScheduleId: string,
+    attended: boolean,
+  ) {
+    const existing = await this.prisma.dailyAttendance.findFirst({
+      where: {
+        userId,
+        agendaItemId,
+        dayScheduleId,
       },
     });
 
-    // Get all agenda items including those generated from schedules
+    if (existing) {
+      return this.prisma.dailyAttendance.update({
+        where: { id: existing.id },
+        data: { attended },
+        include: {
+          user: true,
+          daySchedule: true,
+          agendaItem: true,
+        },
+      });
+    }
+
+    return this.prisma.dailyAttendance.create({
+      data: {
+        userId,
+        agendaItemId,
+        dayScheduleId,
+        attended,
+        date: new Date(),
+      },
+      include: {
+        user: true,
+        daySchedule: true,
+        agendaItem: true,
+      },
+    });
+  }
+
+  async getUserAttendance(juntaId: string, startDate: Date, endDate: Date) {
+    const members = await this.prisma.juntaMember.findMany({
+      where: { juntaId },
+      include: { user: true },
+    });
+
     const agendaItems = await this.prisma.agendaItem.findMany({
       where: {
         juntaId,
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
+        weekStartDate: { gte: startDate },
+        weekEndDate: { lte: endDate },
       },
       include: {
-        asistencias: {
+        daySchedules: {
           include: {
-            user: true,
+            attendance: {
+              include: { user: true },
+            },
           },
         },
-        schedule: true,
       },
-      orderBy: {
-        date: 'asc',
-      },
+      orderBy: { weekStartDate: 'asc' },
     });
 
-    // Format dates to match the expected format
-    const dates = agendaItems.map((item) => ({
-      date: item.date,
-      id: item.id,
-      isScheduled: !!item.scheduleId,
-    }));
-
-    // Format members with their attendance records
     const formattedMembers = members.map((member) => ({
       id: member.user.id,
       name: member.user.full_name || member.user.username,
       role: member.user.member_role,
-      attendance: dates.map((date) => {
-        const agendaItem = agendaItems.find((item) => item.id === date.id);
-        const attendance = agendaItem?.asistencias.find(
-          (a) => a.userId === member.user.id,
-        );
-        return {
-          date: date.date,
-          agendaItemId: date.id,
-          attended: attendance?.asistio || false,
-          isScheduled: date.isScheduled,
-        };
-      }),
+      attendance: agendaItems.flatMap((agendaItem) =>
+        agendaItem.daySchedules.map((schedule) => ({
+          date: schedule.startTime,
+          agendaItemId: agendaItem.id,
+          dayScheduleId: schedule.id,
+          attended: schedule.attendance.some(
+            (a) => a.userId === member.user.id && a.attended,
+          ),
+          dayOfWeek: schedule.dayOfWeek,
+        })),
+      ),
     }));
 
     return {
-      dates,
+      agendaItems,
       members: formattedMembers,
     };
-  }
-
-  async markAttendance(
-    memberId: string,
-    agendaItemId: string,
-    asistio: boolean,
-  ) {
-    // First verify the agenda item exists
-    const agendaItem = await this.prisma.agendaItem.findUnique({
-      where: { id: agendaItemId },
-      include: {
-        schedule: true,
-      },
-    });
-
-    if (!agendaItem) {
-      throw new NotFoundException('No se encontró la reunión especificada');
-    }
-
-    // Verify the user is a member of the junta
-    const member = await this.prisma.juntaMember.findFirst({
-      where: {
-        userId: memberId,
-        juntaId: agendaItem.juntaId,
-      },
-    });
-
-    if (!member) {
-      throw new NotFoundException('El usuario no es miembro de esta junta');
-    }
-
-    try {
-      const existing = await this.prisma.asistencia.findFirst({
-        where: {
-          userId: memberId,
-          agendaItemId,
-        },
-      });
-
-      if (existing) {
-        return this.prisma.asistencia.update({
-          where: { id: existing.id },
-          data: { asistio },
-          include: {
-            user: true,
-            agendaItem: {
-              include: {
-                schedule: true,
-              },
-            },
-          },
-        });
-      }
-
-      return this.prisma.asistencia.create({
-        data: {
-          user: { connect: { id: memberId } },
-          agendaItem: { connect: { id: agendaItemId } },
-          asistio,
-          fecha: agendaItem.date,
-        },
-        include: {
-          user: true,
-          agendaItem: {
-            include: {
-              schedule: true,
-            },
-          },
-        },
-      });
-    } catch (error) {
-      throw new NotFoundException('Error al marcar la asistencia');
-    }
   }
 }

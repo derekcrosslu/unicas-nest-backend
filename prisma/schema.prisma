@@ -7,37 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Schedule {
-  id            String   @id @default(uuid())
-  juntaId       String
-  name          String
-  frequency     String   // WEEKLY, MONTHLY
-  startDate     DateTime
-  endDate       DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  junta         Junta    @relation(fields: [juntaId], references: [id])
-  weeklySchedules WeeklySchedule[]
-
-  @@index([juntaId])
-}
-
-model WeeklySchedule {
-  id          String   @id @default(uuid())
-  scheduleId  String
-  dayOfWeek   Int      // 1-7 for Monday-Sunday
-  startTime   DateTime
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  schedule    Schedule @relation(fields: [scheduleId], references: [id])
-  agendaItems AgendaItem[]
-
-  @@index([scheduleId])
-}
-
 model PaymentSchedule {
   id                String      @id @default(uuid())
   due_date         DateTime
@@ -166,42 +135,61 @@ model PagoPrestamoNew {
 }
 
 model AgendaItem {
-  id          String            @id @default(uuid())
-  title       String
-  description String?
-  date        DateTime
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  juntaId     String
-  scheduleId  String?
+  id            String          @id @default(uuid())
+  title         String
+  description   String?
+  weekStartDate DateTime        // Start date of the week
+  weekEndDate   DateTime        // End date of the week
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  juntaId       String
   
-  junta       Junta             @relation(fields: [juntaId], references: [id])
-  schedule    WeeklySchedule?   @relation(fields: [scheduleId], references: [id])
-  asistencias Asistencia[]
-  multas      Multa[]           
-  acciones    Accion[]          
-  prestamos   PrestamoNew[]     
-  pagos       PagoPrestamoNew[]
-  users       User[]            @relation("UserAgendaItems")
+  junta         Junta           @relation(fields: [juntaId], references: [id])
+  daySchedules  DaySchedule[]
+  dailyAttendance DailyAttendance[]
+  users         User[]          @relation("UserAgendaItems")
+  
+  // Other existing relations...
+  multas        Multa[]           
+  acciones      Accion[]          
+  prestamos     PrestamoNew[]     
+  pagos         PagoPrestamoNew[]
 
   @@index([juntaId])
-  @@index([scheduleId])
 }
 
-model Asistencia {
-  id           String     @id @default(uuid())
-  asistio      Boolean    @default(false)
-  fecha        DateTime
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  agendaItemId String
-  userId       String
+model DaySchedule {
+  id            String         @id @default(uuid())
+  dayOfWeek     String        // Changed from DayOfWeek enum to String
+  startTime     DateTime
+  endTime       DateTime
+  agendaItemId  String
+  
+  agendaItem    AgendaItem    @relation(fields: [agendaItemId], references: [id])
+  attendance    DailyAttendance[]
 
-  agendaItem   AgendaItem @relation(fields: [agendaItemId], references: [id])
-  user         User       @relation(fields: [userId], references: [id])
+  @@unique([agendaItemId, dayOfWeek]) // Ensure one schedule per day per agenda item
+  @@index([agendaItemId])
+}
 
+model DailyAttendance {
+  id            String       @id @default(uuid())
+  agendaItemId  String
+  userId        String
+  dayScheduleId String
+  attended      Boolean      @default(false)
+  date          DateTime
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  agendaItem    AgendaItem   @relation(fields: [agendaItemId], references: [id])
+  user          User         @relation(fields: [userId], references: [id])
+  daySchedule   DaySchedule  @relation(fields: [dayScheduleId], references: [id])
+
+  @@unique([userId, agendaItemId, dayScheduleId]) // One attendance record per user per day per agenda item
   @@index([agendaItemId])
   @@index([userId])
+  @@index([dayScheduleId])
 }
 
 model User {
@@ -238,7 +226,7 @@ model User {
   avalPrestamos               PrestamoNew[] @relation("Aval")
   prestamos_new               PrestamoNew[]
   agendaItems                 AgendaItem[]  @relation("UserAgendaItems")
-  asistencias                 Asistencia[]
+   dailyAttendance            DailyAttendance[] 
 }
 
 model JuntaMember {
@@ -276,7 +264,6 @@ model Junta {
   multas            Multa[]
   prestamos         Prestamo[]
   prestamos_new     PrestamoNew[]
-  schedules         Schedule[]
 
   @@index([createdById])
 }

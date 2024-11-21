@@ -29,14 +29,19 @@ export class AgendaController {
   constructor(private readonly agendaService: AgendaService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new agenda item' })
+  @ApiOperation({ summary: 'Create a weekly agenda item' })
   async create(
     @Body()
     data: {
       title: string;
       description?: string;
-      date: string;
+      date: string; // Start date of the week
       juntaId: string;
+      schedules?: {
+        dayOfWeek: string;
+        startTime: string;
+        endTime: string;
+      }[];
     },
     @Request() req: RequestWithUser,
   ) {
@@ -49,6 +54,7 @@ export class AgendaController {
       req.user.role,
     );
   }
+
   @Get('junta/:juntaId')
   @ApiOperation({ summary: 'Get all agenda items for a junta' })
   async findByJunta(
@@ -59,13 +65,15 @@ export class AgendaController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a specific agenda item' })
+  @ApiOperation({
+    summary: 'Get a specific agenda item with its week schedule',
+  })
   async findOne(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.agendaService.findOne(id, req.user.id, req.user.role);
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Update an agenda item' })
+  @ApiOperation({ summary: 'Update an agenda item and its schedule' })
   async update(
     @Param('id') id: string,
     @Body()
@@ -73,6 +81,11 @@ export class AgendaController {
       title?: string;
       description?: string;
       date?: string;
+      schedules?: {
+        dayOfWeek: string;
+        startTime: string;
+        endTime: string;
+      }[];
     },
     @Request() req: RequestWithUser,
   ) {
@@ -80,7 +93,7 @@ export class AgendaController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete an agenda item' })
+  @ApiOperation({ summary: 'Delete an agenda item and its schedule' })
   async remove(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.agendaService.remove(id, req.user.id, req.user.role);
   }

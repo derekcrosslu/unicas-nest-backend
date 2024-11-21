@@ -1,0 +1,48 @@
+@baseUrl = http://localhost:3000/api
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Register new admin user (Run this first time only)
+# @name registerAdmin
+POST {{baseUrl}}/auth/register/admin
+Content-Type: application/json
+
+{
+    "email": "admin2@admin.com",
+    "password": "123123",
+    "username": "admin2",
+    "phone": "9123456782"
+}
+
+
+### Login with phone number
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "phone": "9123456782",
+    "password": "123123"
+}
+
+### Store the auth token from login response
+@authToken = {{login.response.body.access_token}}
+
+
+### Get all users
+# @name users
+GET {{baseUrl}}/users
+Authorization: Bearer {{authToken}}
+
+### userid
+@userId = {{users.response.body.$.[1].$.id}}
+
+### Update user
+PUT {{baseUrl}}/users/{{userId}}/role
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "role": "ADMIN"
+}
