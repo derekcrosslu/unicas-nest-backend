@@ -5,14 +5,14 @@ GET {{baseUrl}}/health
 
 ### Register new admin user (Run this first time only)
 # @name registerAdmin
-POST {{baseUrl}}/auth/register/admin
+POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-    "email": "admin2@admin.com",
+    "email": "user@user.com",
     "password": "123123",
-    "username": "admin2",
-    "phone": "9123456782"
+    "username": "user",
+    "phone": "984722381"
 }
 
 
@@ -22,7 +22,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "phone": "9123456782",
+    "phone": "984722381",
     "password": "123123"
 }
 

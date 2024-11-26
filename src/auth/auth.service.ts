@@ -7,20 +7,20 @@ import { RegisterDto, LoginDto } from './dto/auth.dto';
 
 type UserWithoutPassword = Omit<User, 'password'>;
 
-const stripPhoneNumber = (phone: string): string => {
-  if (!phone) return phone;
-  // Remove any non-digit characters (including +)
-  const cleaned = phone.replace(/\D/g, '');
-  // Remove country code if present
-  return cleaned.replace(/^51/, '');
-};
+// const stripPhoneNumber = (phone: string): string => {
+//   if (!phone) return phone;
+//   // Remove any non-digit characters (including +)
+//   const cleaned = phone.replace(/\D/g, '');
+//   // Remove country code if present
+//   return cleaned.replace(/^51/, '');
+// };
 
-const formatPhoneNumber = (phone: string): string => {
-  if (!phone) return phone;
-  // Remove any non-digit characters and ensure 51 prefix
-  const cleaned = phone.replace(/\D/g, '');
-  return cleaned.startsWith('51') ? cleaned : `51${cleaned}`;
-};
+// const formatPhoneNumber = (phone: string): string => {
+//   if (!phone) return phone;
+//   // Remove any non-digit characters and ensure 51 prefix
+//   const cleaned = phone.replace(/\D/g, '');
+//   return cleaned.startsWith('51') ? cleaned : `51${cleaned}`;
+// };
 
 @Injectable()
 export class AuthService {
@@ -39,22 +39,18 @@ export class AuthService {
     });
 
     // Strip the phone number to match database format
-    const strippedPhone = stripPhoneNumber(loginDto.phone);
-    console.log('Stripped phone number:', strippedPhone);
+    // const strippedPhone = stripPhoneNumber(loginDto.phone);
+    // console.log('Stripped phone number:', strippedPhone);
 
     const user = await this.prisma.user.findFirst({
-      where: { phone: strippedPhone },
+      where: { phone: loginDto.phone },
     });
-
-    console.log(
-      'Found user:',
-      user
-        ? {
-            ...user,
-            password: '[HIDDEN]',
-          }
-        : 'null',
-    );
+    
+    console.log("user: ", user);
+    console.log('Password check:', {
+      providedPassword: loginDto.password ? '[PRESENT]' : '[MISSING]',
+      hashedPassword: user.password ? '[PRESENT]' : '[MISSING]',
+    });
 
     if (!user) {
       throw new UnauthorizedException('User not found');
@@ -79,10 +75,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const formattedPhone = formatPhoneNumber(user.phone);
+    // const formattedPhone = formatPhoneNumber(user.phone);
     const payload = {
       sub: user.id,
-      phone: formattedPhone,
+      phone: user.phone,
       role: user.role,
     };
 
@@ -91,7 +87,7 @@ export class AuthService {
       user: {
         id: user.id,
         role: user.role,
-        phone: `+${formattedPhone}`, // Add + prefix for response
+        phone: `+${user.phone}`, // Add + prefix for response
         username: user.username,
       },
     };
@@ -103,17 +99,16 @@ export class AuthService {
     }
 
     // Strip phone number for storage
-    const strippedPhone = stripPhoneNumber(registerDto.phone);
+    // const strippedPhone = stripPhoneNumber(registerDto.phone);
 
     console.log('Register attempt with:', {
       phone: registerDto.phone,
-      stripped_phone: strippedPhone,
       username: registerDto.username,
     });
 
     const existingUser = await this.prisma.user.findFirst({
       where: {
-        OR: [{ username: registerDto.username }, { phone: strippedPhone }],
+        OR: [{ username: registerDto.username }, { phone: registerDto.phone }],
       },
     });
 
@@ -128,7 +123,7 @@ export class AuthService {
       data: {
         username: registerDto.username,
         password: hashedPassword,
-        phone: strippedPhone,
+        phone: registerDto.phone,
         role,
         status: 'Activo',
       },

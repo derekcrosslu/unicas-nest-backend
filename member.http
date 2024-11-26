@@ -1,0 +1,104 @@
+@baseUrl = http://localhost:3000/api
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Login with phone number
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "phone": "912345678",
+    "password": "123123"
+}
+
+### Store the auth token from login response
+@authToken = {{login.response.body.access_token}}
+
+### Get all users
+# @name users
+GET {{baseUrl}}/users
+Authorization: Bearer {{authToken}}
+
+### Get all juntas
+# @name juntas
+GET {{baseUrl}}/juntas
+Authorization: Bearer {{authToken}}
+
+@juntaId = {{juntas.response.body.$.[3].$.id}}
+
+### Get all members of junta
+# @name members
+GET {{baseUrl}}/members/junta/{{juntaId}}
+Authorization: Bearer {{authToken}}
+
+### Get memberId
+@memberId = {{members.response.body.$.[2].$.id}}
+
+### Get memberId
+@memberId1 =  66d31f66-7a2e-4b8b-a993-76ae74f374a0
+
+### userid
+@userId = {{users.response.body.$.[4].$.id}}
+
+### Get user by id
+# @name user
+GET {{baseUrl}}/members/{{memberId1}}
+Authorization: Bearer {{authToken}}
+
+### Update member
+# @name updateMember
+PATCH {{baseUrl}}/members/{{memberId1}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "full_name": "Jose Luque",
+    "document_type": "DNI",
+    "document_number": "12345678",
+    "role": "socio",
+    "productive_activity": "Economista",
+    "birth_date": "1990-01-01",
+    "phone": "987654321",
+    "address": "Calle Principal 123",
+    "join_date": "2024-11-26",
+    "gender": "Masculino",
+    "additional_info": "Updated information"
+}
+
+### Update member password
+# @name updateMemberPassword
+PATCH {{baseUrl}}/members/{{memberId1}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "password": "123123"
+}
+
+### Update member address
+# @name updateMemberPassword
+PATCH {{baseUrl}}/members/{{memberId1}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+     "email": "987654321@unica.com"
+}
+
+
+### Verify update (optional)
+# @name verifyUpdate
+GET {{baseUrl}}/members/{{memberId1}}
+Authorization: Bearer {{authToken}}
+
+### User Login with phone number
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "phone": "987654321",
+    "password": "123123"
+}

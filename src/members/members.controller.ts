@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Param,
   UseGuards,
@@ -18,6 +19,9 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { UserRole } from '../types/user-role';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AddMemberDto } from '../juntas/dto/add-member.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { MembersService } from './member.service';
+import { UpdateMemberDto } from './dto/update-member.dto';
 
 interface RequestWithUser extends Request {
   user: {
@@ -37,6 +41,8 @@ export class MembersController {
     private readonly prestamosService: PrestamosService,
     private readonly multasService: MultasService,
     private readonly accionesService: AccionesService,
+    private readonly prisma: PrismaService,
+    private readonly membersService: MembersService,
   ) {}
 
   @Get('junta/:juntaId')
@@ -87,6 +93,18 @@ export class MembersController {
       req.user.id,
       req.user.role,
     );
+  }
+
+  @Get(':memberId')
+  @ApiOperation({
+    summary:
+      'Get member complete profile including acciones, prestamos, and multas',
+  })
+  async getMemberById(
+    @Param('memberId') memberId: string,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.membersService.getMemberProfile(memberId);
   }
 
   @Get('dni/:documentNumber/acciones')
@@ -152,6 +170,22 @@ export class MembersController {
       req.user.id,
       req.user.role,
     );
+  }
+
+  @Patch(':memberId')
+  async updateMember(
+    @Param('memberId') memberId: string,
+    @Body() memberData: UpdateMemberDto,
+  ) {
+    console.log("memberData: ", memberData);
+    // Convert string date to Date object
+    const updateData: UpdateMemberDto = {
+      ...memberData,
+      join_date: memberData.join_date
+        ? new Date(memberData.join_date)
+        : undefined,
+    };
+    return this.membersService.updateMember(memberId, updateData);
   }
 
   @Delete(':juntaId/:memberId')
