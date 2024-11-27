@@ -73,9 +73,9 @@ export class AddMemberDto {
 
   @ApiProperty({
     description: 'Género',
-    enum: ['Masculino', 'Femenino', 'Otro'],
+    enum: ['Masculino', 'Femenino'],
   })
-  @IsEnum(['Masculino', 'Femenino', 'Otro'])
+  @IsEnum(['Masculino', 'Femenino'])
   gender: Gender;
 
   @ApiProperty({ description: 'Contraseña' })
@@ -88,6 +88,7 @@ export class AddMemberDto {
   additional_info?: string;
 
   @ApiProperty({ description: 'Información del Beneficiario' })
+  @IsOptional()
   @ValidateNested()
   @Type(() => BeneficiaryDto)
   beneficiary: BeneficiaryDto;

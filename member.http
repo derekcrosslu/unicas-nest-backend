@@ -28,6 +28,26 @@ Authorization: Bearer {{authToken}}
 
 @juntaId = {{juntas.response.body.$.[3].$.id}}
 
+#### Create member
+# @name createMember
+POST {{baseUrl}}/members/{{juntaId}}/add/12345677
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "full_name": "Jose Luque",
+    "document_type": "DNI",
+    "document_number": "12345677",
+    "role": "socio",
+    "productive_activity": "Economista",
+    "birth_date": "1990-01-01",
+    "phone": "111777333",
+    "address": "Calle Principal 123",
+    "join_date": "2024-11-26",
+    "gender": "Masculino",
+    "password": "123123"
+}
+
 ### Get all members of junta
 # @name members
 GET {{baseUrl}}/members/junta/{{juntaId}}
@@ -46,6 +66,8 @@ Authorization: Bearer {{authToken}}
 # @name user
 GET {{baseUrl}}/members/{{memberId1}}
 Authorization: Bearer {{authToken}}
+
+
 
 ### Update member
 # @name updateMember

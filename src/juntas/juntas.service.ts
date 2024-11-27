@@ -254,7 +254,6 @@ export class JuntasService {
     userRole: UserRole,
   ) {
     const junta = await this.findOne(juntaId, userId, userRole);
-
     // Check if user has permission to add members
     const hasPermission =
       userRole === 'ADMIN' ||
@@ -299,6 +298,7 @@ export class JuntasService {
     }
 
     try {
+      console.log('trying to create user');
       // Create new user if doesn't exist
       const newUser = await this.prisma.user.create({
         data: {
@@ -319,11 +319,11 @@ export class JuntasService {
           additional_info: memberData.additional_info,
           status: 'Activo',
           // Beneficiary information
-          beneficiary_full_name: memberData.beneficiary.full_name,
-          beneficiary_document_type: memberData.beneficiary.document_type,
-          beneficiary_document_number: memberData.beneficiary.document_number,
-          beneficiary_phone: memberData.beneficiary.phone,
-          beneficiary_address: memberData.beneficiary.address,
+          beneficiary_full_name: memberData?.beneficiary?.full_name,
+          beneficiary_document_type: memberData?.beneficiary?.document_type,
+          beneficiary_document_number: memberData?.beneficiary?.document_number,
+          beneficiary_phone: memberData?.beneficiary?.phone,
+          beneficiary_address: memberData?.beneficiary?.address,
           // Create the junta membership
           memberJuntas: {
             create: {
@@ -339,7 +339,8 @@ export class JuntasService {
           },
         },
       });
-
+      
+      console.log("newUser: ", newUser);
       return {
         ...newUser,
         junta,
