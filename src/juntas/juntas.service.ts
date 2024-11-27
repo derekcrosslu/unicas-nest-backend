@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateJuntaDto } from './dto/create-junta.dto';
 import { AddMemberDto } from './dto/add-member.dto';
 import { UserRole } from '../types/user-role';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class JuntasService {
@@ -300,11 +301,14 @@ export class JuntasService {
     try {
       console.log('trying to create user');
       // Create new user if doesn't exist
+
+      const hashedPassword = await bcrypt.hash(memberData.password, 10);
+      
       const newUser = await this.prisma.user.create({
         data: {
           username: `user_${memberData.document_number}`,
           email: `${memberData.document_number}@example.com`,
-          password: memberData.password,
+          password: hashedPassword,
           phone: memberData.phone,
           role: 'USER',
           member_role: memberData.role,
