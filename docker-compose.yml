@@ -7,7 +7,7 @@ services:
     ports:
       - '${PORT:-3000}:${PORT:-3000}'
     environment:
-      DATABASE_URL: postgresql://postgres:DfsWbOwGHJLLveifLbUDnWyloOtmfRmU@autorack.proxy.rlwy.net:48766/railway
+      DATABASE_URL: postgresql://postgres:ZphuPdCSLAbUhszonMNeJGdmrUeAMNmx@autorack.proxy.rlwy.net:33399/railway
       NODE_ENV: development
       PORT: ${PORT:-3000}
       HOST: '0.0.0.0'
