@@ -6,13 +6,18 @@ endpoints
 # Environment
 .env
 .env.*
-
+postgres-data
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-
+create-admin.http
+member.http
+test-agenda.http
+test-prestamo.http
+test-atendance.http
+*.http
 # Logs
 logs
 *.log

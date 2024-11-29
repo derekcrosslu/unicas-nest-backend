@@ -188,6 +188,20 @@ export class MultasService {
       );
     }
 
+    const delta =
+      data.amount < multa.amount
+        ? { decrement: multa.amount }
+        : { increment: multa.amount };
+
+    // Update junta's capital
+    await this.prisma.junta.update({
+      where: { id: multa.juntaId },
+      data: {
+        current_capital: delta,
+        available_capital: delta,
+      },
+    });
+
     return this.prisma.multa.update({
       where: { id },
       data,

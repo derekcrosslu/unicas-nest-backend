@@ -5,7 +5,9 @@ import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
 
-type UserWithoutPassword = Omit<User, 'password'>;
+type UserWithJunta = User & { memberJuntas: { junta: { id: string } }[] };
+
+type UserWithoutPassword = Omit<UserWithJunta, 'password'>;
 
 // const stripPhoneNumber = (phone: string): string => {
 //   if (!phone) return phone;
@@ -29,27 +31,63 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  // async validateUser(loginDto: LoginDto): Promise<UserWithoutPassword | null> {
+  //   if (!loginDto.phone) {
+  //     throw new UnauthorizedException('Phone number is required');
+  //   }
+
+  //   console.log('Login attempt with:', {
+  //     phone: loginDto.phone,
+  //   });
+
+  //   // Strip the phone number to match database format
+  //   // const strippedPhone = stripPhoneNumber(loginDto.phone);
+  //   // console.log('Stripped phone number:', strippedPhone);
+
+  //   const user = await this.prisma.user.findFirst({
+  //     where: { phone: loginDto.phone },
+  //   });
+  //   console.log("user: ", user);
+  //   console.log('Password check:', {
+  //     providedPassword: loginDto.password ? '[PRESENT]' : '[MISSING]',
+  //     hashedPassword: user.password ? '[PRESENT]' : '[MISSING]',
+  //   });
+
+  //   if (!user) {
+  //     throw new UnauthorizedException('User not found');
+  //   }
+
+  //   const isPasswordValid = await bcrypt.compare(
+  //     loginDto.password,
+  //     user.password,
+  //   );
+  //   if (!isPasswordValid) {
+  //     throw new UnauthorizedException('Invalid password');
+  //   }
+
+  //   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  //   const { password, ...result } = user;
+  //   return result;
+  // }
+
   async validateUser(loginDto: LoginDto): Promise<UserWithoutPassword | null> {
     if (!loginDto.phone) {
       throw new UnauthorizedException('Phone number is required');
     }
 
-    console.log('Login attempt with:', {
-      phone: loginDto.phone,
-    });
-
-    // Strip the phone number to match database format
-    // const strippedPhone = stripPhoneNumber(loginDto.phone);
-    // console.log('Stripped phone number:', strippedPhone);
-
     const user = await this.prisma.user.findFirst({
       where: { phone: loginDto.phone },
-    });
-    
-    console.log("user: ", user);
-    console.log('Password check:', {
-      providedPassword: loginDto.password ? '[PRESENT]' : '[MISSING]',
-      hashedPassword: user.password ? '[PRESENT]' : '[MISSING]',
+      include: {
+        memberJuntas: {
+          include: {
+            junta: true,
+          },
+          orderBy: {
+            joinedAt: 'desc',
+          },
+          take: 1,
+        },
+      },
     });
 
     if (!user) {
@@ -64,8 +102,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid password');
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...result } = user;
+    console.log("result: ", result);
     return result;
   }
 
@@ -89,6 +127,7 @@ export class AuthService {
         role: user.role,
         phone: `+${user.phone}`, // Add + prefix for response
         username: user.username,
+        juntas: user?.memberJuntas,
       },
     };
   }

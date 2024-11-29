@@ -359,3 +359,22 @@ model PagoPrestamo {
 
   @@index([prestamoId])
 }
+
+// prisma/schema.prisma
+model PerformanceMetric {
+  id                Int      @id @default(autoincrement())
+  type              String   // Metric type (LCP, TTI, etc.)
+  value            Float    // The measured value
+  pathname         String   // The page path where metric was collected
+  searchParams     Json?    // URL search parameters, stored as JSON
+  timestamp        DateTime // When the metric was recorded
+  navigationStart  Float?   // Performance.now() at navigation start
+  navigationDuration Float? // Time taken for navigation
+  elementId        String?  // ID of the element (for LCP)
+  elementTag       String?  // HTML tag of the element (for LCP)
+  url              String   // Full URL where metric was collected
+  userAgent        String?  // Browser user agent
+  createdAt        DateTime @default(now())
+
+  @@index([type, timestamp]) // Index for querying metrics by type and time
+}
