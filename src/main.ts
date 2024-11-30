@@ -10,29 +10,31 @@ async function bootstrap() {
     logger: ['error', 'warn', 'debug', 'log'],
   });
   const configService = app.get(ConfigService);
+// 'app.enableDebugLogs();'
 
-  // Enable CORS with specific configuration
-  app.enableCors({
-    origin: [
-      'https://unicas-frontend-production.up.railway.app',
-      'https://unicas-frontend-dev.up.railway.app',
-      'https://unicas-frontend-nuevaui.up.railway.app',
-      'https://unicas-frontend-production-f12d.up.railway.app',
-      'http://localhost:3001', // Frontend URL
-      configService.get('FRONTEND_URL'),
-    ],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
-    allowedHeaders: [
-      'Origin',
-      'X-Requested-With',
-      'Content-Type',
-      'Accept',
-      'Authorization',
-    ],
-    exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  });
-
+//claude.ai/chat/01eea9cb-10cd-44a3-9413-0b81cd6e6c28#:~:text=app.enableDebugLogs()%3B
+// Enable CORS with specific configuration
+https: app.enableCors({
+  origin: [
+    'https://unicas-frontend-production.up.railway.app',
+    'https://unicas-frontend-dev.up.railway.app',
+    'https://unicas-frontend-nuevaui.up.railway.app',
+    'https://unicas-frontend-production-f12d.up.railway.app',
+    'http://localhost:3001', // Frontend URL
+    configService.get('FRONTEND_URL'),
+  ],
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  credentials: true,
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+  ],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+});
+app.useLogger(['debug', 'error', 'log', 'verbose', 'warn']);
   // Increase JSON payload size limit
   app.use(json({ limit: '50mb' }));
 
