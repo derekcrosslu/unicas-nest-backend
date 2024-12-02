@@ -690,9 +690,14 @@ export class PrestamosService {
     // Validate based on loan type
     switch (prestamo.loan_type) {
       case 'CUOTA_FIJA':
-        if (Math.abs(amount - nextPayment.expected_amount) > 0.01) {
+        // if (Math.abs(amount - nextPayment.expected_amount) > 0.01) {
+        //   throw new BadRequestException(
+        //     `Fixed payment loans require exact payment amount: ${nextPayment.expected_amount}`,
+        //   );
+        // }
+        if (amount < nextPayment.interest) {
           throw new BadRequestException(
-            `Fixed payment loans require exact payment amount: ${nextPayment.expected_amount}`,
+            `Payment must cover at least the interest amount: ${nextPayment.interest}`,
           );
         }
         break;
