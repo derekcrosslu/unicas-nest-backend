@@ -9,7 +9,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "phone": "912345678",
+    "phone": "987654322",
     "password": "123123"
 }
 
@@ -26,7 +26,7 @@ Authorization: Bearer {{authToken}}
 GET {{baseUrl}}/juntas
 Authorization: Bearer {{authToken}}
 
-@juntaId = {{juntas.response.body.$.[3].$.id}}
+@juntaId = {{juntas.response.body.$.[0].$.id}}
 
 #### Create member
 # @name createMember
@@ -54,17 +54,17 @@ GET {{baseUrl}}/members/junta/{{juntaId}}
 Authorization: Bearer {{authToken}}
 
 ### Get memberId
-@memberId = {{members.response.body.$.[2].$.id}}
+@memberId = {{members.response.body.$.[1].$.id}}
 
 ### Get memberId
-@memberId1 =  66d31f66-7a2e-4b8b-a993-76ae74f374a0
+@memberId1 =  ff8d9915-9a8b-4831-ac79-57d42b7c0c76
 
 ### userid
 @userId = {{users.response.body.$.[4].$.id}}
 
 ### Get user by id
 # @name user
-GET {{baseUrl}}/members/{{memberId1}}
+GET {{baseUrl}}/members/{{memberId}}
 Authorization: Bearer {{authToken}}
 
 

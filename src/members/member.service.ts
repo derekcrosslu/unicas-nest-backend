@@ -103,13 +103,14 @@ export class MembersService {
     return {
       member: {
         id: member.id,
-        nombre: member.full_name,
-        dni: member.document_number,
-        celular: member.phone,
-        cargo: member.member_role,
-        fecha_ingreso: member.join_date,
-        actividad_productiva: member.productive_activity,
-        estado: member.status,
+        full_name: member.full_name,
+        document_number: member.document_number,
+        phone: member.phone,
+        role: member.member_role,
+        join_date: member.join_date,
+        birth_date: member.birth_date,
+        productive_activity: member.productive_activity,
+        status: member.status,
       },
       acciones: {
         detalle: member.acciones,
