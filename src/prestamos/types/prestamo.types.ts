@@ -99,6 +99,9 @@ export interface PaymentSchedule {
   id: string;
   due_date: Date;
   expected_amount: number;
+  paid_amount: number;
+  remaining_balance: number;
+  loanAmount: number;
   principal: number;
   interest: number;
   installment_number: number;
@@ -143,9 +146,12 @@ export interface ProcessPaymentDTO {
 export interface PaymentScheduleItem {
   due_date: Date;
   expected_amount: number;
+  paid_amount: number;
   principal: number;
   interest: number;
   installment_number: number;
+  remaining_balance: number;
+  loanAmount: number;
   status: 'PENDING' | 'PAID' | 'PARTIAL' | 'OVERDUE';
 }
 

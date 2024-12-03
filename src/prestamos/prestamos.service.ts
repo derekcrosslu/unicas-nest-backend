@@ -31,8 +31,8 @@ const PaymentScheduleStatus = {
   OVERDUE: 'OVERDUE',
 } as const;
 
-type PaymentScheduleStatusType =
-  (typeof PaymentScheduleStatus)[keyof typeof PaymentScheduleStatus];
+// type PaymentScheduleStatusType =
+//   (typeof PaymentScheduleStatus)[keyof typeof PaymentScheduleStatus];
 
 interface ExtendedCapitalSnapshot extends CapitalSnapshot {
   payment_schedule: PaymentScheduleItem[];
@@ -87,10 +87,13 @@ export class PrestamosService {
     }
 
     const start_date = new Date(data.request_date);
+    const remaining_balance = amount; // Define remaining_balance
+
     const payment_schedule = this.calculatePaymentSchedule(
       amount,
       monthly_interest,
       data.number_of_installments,
+      remaining_balance,
       start_date,
       data.payment_type,
       data.loan_type,
@@ -103,7 +106,10 @@ export class PrestamosService {
       data.loan_type,
       data.payment_type,
     );
-
+    const totalLoanAmount =
+      calculation.amortizationSchedule?.reduce((sum, row) => {
+        return sum + row.payment;
+      }, 0) || amount;
     const capitalSnapshot: ExtendedCapitalSnapshot = {
       current_capital: junta.current_capital,
       base_capital: junta.base_capital,
@@ -148,30 +154,19 @@ export class PrestamosService {
               data: payment_schedule.map((schedule) => ({
                 due_date: schedule.due_date,
                 expected_amount: schedule.expected_amount,
+                paid_amount: schedule.paid_amount,
                 principal: schedule.principal,
                 interest: schedule.interest,
                 installment_number: schedule.installment_number,
                 status: schedule.status,
+                remaining_balance: schedule.remaining_balance,
+                loanAmount: totalLoanAmount,
               })),
             },
           },
           affects_capital: true,
         },
       });
-
-      // Create payment schedule entries
-      // await prisma.paymentSchedule.createMany({
-      //   data: payment_schedule.map((schedule) => ({
-      //     prestamoId: prestamo.id,
-      //     due_date: schedule.due_date,
-      //     expected_amount: schedule.expected_amount,
-      //     principal: schedule.principal,
-      //     interest: schedule.interest,
-      //     installment_number: schedule.installment_number,
-      //     status: schedule.status as PaymentScheduleStatusType,
-      //   })),
-      // });
-
       // Create capital movement
       await prisma.capitalMovement.create({
         data: {
@@ -183,7 +178,6 @@ export class PrestamosService {
           prestamoId: prestamo.id,
         },
       });
-
       // Update junta's capital
       await prisma.junta.update({
         where: { id: data.juntaId },
@@ -192,7 +186,6 @@ export class PrestamosService {
           available_capital: { decrement: amount },
         },
       });
-
       // Return complete prestamo data
       const prestamoWithDetails = await this.prisma.prestamoNew.findUnique({
         where: { id: prestamo.id },
@@ -269,12 +262,16 @@ export class PrestamosService {
         },
       });
 
+      const juntaId = prestamo.juntaId;
+
       // Update payment schedule status
       await this.updatePaymentScheduleStatuses(
         prisma as PrismaClient,
         prestamo,
         amount,
         totalPaid,
+        prestamoId,
+        juntaId,
       );
 
       // Create capital movement
@@ -289,16 +286,6 @@ export class PrestamosService {
           pagoId: pago.id,
         },
       });
-
-      // Update junta's capital
-      await prisma.junta.update({
-        where: { id: prestamo.juntaId },
-        data: {
-          current_capital: { increment: amount },
-          available_capital: { increment: amount },
-        },
-      });
-
       // Update loan status
       if (totalPaid >= prestamo.amount) {
         await prisma.prestamoNew.update({
@@ -376,6 +363,31 @@ export class PrestamosService {
             .filter((p) => p.id !== pagoId)
             .reduce((sum, p) => sum + p.amount, 0);
 
+        const resetFromInstallment =
+          pago.prestamo.paymentSchedule.find(
+            (ps) =>
+              ps.status !== 'PAID' ||
+              new Date(ps.due_date) > new Date(pago.date),
+          )?.installment_number || 1;
+
+        const affectedSchedules = pago.prestamo.paymentSchedule
+          .filter((s) => s.installment_number >= resetFromInstallment)
+          .sort((a, b) => a.installment_number - b.installment_number);
+
+        let currentBalance = newRemainingAmount;
+        for (const schedule of affectedSchedules) {
+          await prisma.paymentSchedule.update({
+            where: { id: schedule.id },
+            data: {
+              status: 'PENDING',
+              remaining_balance: currentBalance,
+              paid_amount: 0, // Reset paid_amount when payment is deleted
+              expected_amount: schedule.principal + schedule.interest, // Restore original expected amount
+            },
+          });
+          currentBalance = Math.max(0, currentBalance - schedule.principal);
+        }
+
         // Reset payment schedule statuses
         await prisma.paymentSchedule.updateMany({
           where: {
@@ -448,15 +460,80 @@ export class PrestamosService {
     }
   }
 
+  // private calculatePaymentSchedule(
+  //   amount: number,
+  //   monthly_interest: number,
+  //   number_of_installments: number,
+  //   remaining_balance: number,
+  //   start_date: Date,
+  //   payment_type: PaymentType,
+  //   loan_type: LoanType,
+  // ): PaymentScheduleItem[] {
+  //   const calculation = this.loanCalculator.calculateLoan(
+  //     amount,
+  //     monthly_interest,
+  //     number_of_installments,
+  //     loan_type,
+  //     payment_type,
+  //   );
+
+  //   let intervalDays: number;
+  //   switch (payment_type) {
+  //     case 'SEMANAL':
+  //       intervalDays = 7;
+  //       break;
+  //     case 'QUINCENAL':
+  //       intervalDays = 15;
+  //       break;
+  //     case 'MENSUAL':
+  //     default:
+  //       intervalDays = 30;
+  //       break;
+  //   }
+
+  //   const totalToRepay = calculation.totalPayment;
+  //   console.log('totalToRepay: ', totalToRepay);
+  //   let currentBalance = totalToRepay;
+  //   const totalLoanAmount =
+  //     calculation.amortizationSchedule?.reduce((sum, row) => {
+  //       return sum + row.payment;
+  //     }, 0) || amount;
+  //   return (
+  //     calculation.amortizationSchedule?.map((row, index) => {
+  //       const due_date = new Date(start_date);
+  //       due_date.setDate(due_date.getDate() + intervalDays * (index + 1));
+  //       // Calculate remaining balance
+  //       currentBalance = currentBalance - row.payment;
+  //       // First payment shows total - first payment
+  //       // Subsequent payments show previous balance - current payment
+  //       const remaining_balance = Number(currentBalance.toFixed(2));
+  //       console.log('remaining_balance: ', remaining_balance);
+
+  //       return {
+  //         due_date,
+  //         expected_amount: row.payment,
+  //         paid_amount: 0,
+  //         remaining_balance,
+  //         loanAmount: totalLoanAmount,
+  //         principal: row.principal,
+  //         interest: row.interest,
+  //         installment_number: index + 1,
+  //         status: PaymentScheduleStatus.PENDING,
+  //       };
+  //     }) || []
+  //   );
+  // }
+
   private calculatePaymentSchedule(
     amount: number,
     monthly_interest: number,
     number_of_installments: number,
+    remaining_balance: number,
     start_date: Date,
     payment_type: PaymentType,
     loan_type: LoanType,
+    totalPaidSoFar: number = 0, // Add parameter for total paid amount
   ): PaymentScheduleItem[] {
-    console.log('loan_type: ', loan_type);
     const calculation = this.loanCalculator.calculateLoan(
       amount,
       monthly_interest,
@@ -465,7 +542,6 @@ export class PrestamosService {
       payment_type,
     );
 
-    console.log('calculation: ', calculation);
     let intervalDays: number;
     switch (payment_type) {
       case 'SEMANAL':
@@ -480,14 +556,27 @@ export class PrestamosService {
         break;
     }
 
+    const totalLoanAmount =
+      calculation.amortizationSchedule?.reduce((sum, row) => {
+        return sum + row.payment;
+      }, 0) || amount;
+
+    let currentBalance = totalLoanAmount - totalPaidSoFar; // Adjust for payments already made
+
     return (
       calculation.amortizationSchedule?.map((row, index) => {
         const due_date = new Date(start_date);
         due_date.setDate(due_date.getDate() + intervalDays * (index + 1));
 
+        // Calculate remaining balance for this installment
+        currentBalance = Number((currentBalance - row.payment).toFixed(2));
+
         return {
           due_date,
           expected_amount: row.payment,
+          paid_amount: 0, // This will be updated when payments are made
+          remaining_balance: Math.max(0, currentBalance), // Ensure we never go below 0
+          loanAmount: totalLoanAmount,
           principal: row.principal,
           interest: row.interest,
           installment_number: index + 1,
@@ -497,66 +586,18 @@ export class PrestamosService {
     );
   }
 
-  // private async updatePaymentScheduleStatuses(
-  //   prisma: any,
-  //   prestamo: any,
-  //   currentPaymentAmount: number,
-  //   totalPaidAmount: number,
-  // ) {
-  //   let remainingPayment = currentPaymentAmount;
-  //   const today = new Date();
-
-  //   console.log('totalPaidAmount: ', totalPaidAmount);
-
-  //   for (const scheduleItem of prestamo.paymentSchedule) {
-  //     if (scheduleItem.status === PaymentScheduleStatus.PAID) {
-  //       continue;
-  //     }
-  //     console.log('scheduleItem: ', scheduleItem);
-
-  //     if (remainingPayment >= scheduleItem.expected_amount) {
-  //       // Full payment for this installment
-  //       await prisma.paymentSchedule.update({
-  //         where: { id: scheduleItem.id },
-  //         data: { status: PaymentScheduleStatus.PAID },
-  //       });
-  //       remainingPayment -= scheduleItem.expected_amount;
-  //     } else if (remainingPayment > 0) {
-  //       // Partial payment
-  //       const remainingAmount = scheduleItem.expected_amount - remainingPayment;
-  //       // const newPrincipal = scheduleItem.principal - remainingPayment;
-  //       await prisma.paymentSchedule.update({
-  //         where: { id: scheduleItem.id },
-  //         data: {
-  //           status: PaymentScheduleStatus.PARTIAL,
-  //           expected_amount: remainingAmount,
-  //           // principal: scheduleItem.principal - remainingPayment,
-  //           // principal: newPrincipal,
-  //         },
-  //       });
-  //       if (remainingAmount > 0) {
-  //         remainingPayment = remainingPayment - remainingAmount;
-  //       } else {
-  //         remainingPayment = 0;
-  //       }
-  //     } else if (scheduleItem.due_date < today) {
-  //       // Past due date without payment
-  //       await prisma.paymentSchedule.update({
-  //         where: { id: scheduleItem.id },
-  //         data: { status: PaymentScheduleStatus.OVERDUE },
-  //       });
-  //     }
-  //   }
-  // }
-
   private async updatePaymentScheduleStatuses(
     prisma: PrismaClient,
     prestamo: { paymentSchedule: PaymentSchedule[] },
     currentPaymentAmount: number,
     totalPaidAmount: number,
+    prestamoId: string,
+    juntaId: string,
   ): Promise<void> {
-    let remainingPayment = currentPaymentAmount;
+    let remainingPayment = 0;
     const today = new Date();
+
+    console.log('prestamoId: ', prestamoId);
 
     console.log(
       'Processing payment update - Total paid amount:',
@@ -564,21 +605,32 @@ export class PrestamosService {
     );
 
     for (const scheduleItem of prestamo.paymentSchedule) {
-      // Skip already paid installments
+      // Skip already PAID installments
       if (scheduleItem.status === PaymentScheduleStatus.PAID) {
         continue;
       }
+
+      remainingPayment = scheduleItem.expected_amount - currentPaymentAmount;
+      console.log('remainingPayment: ', remainingPayment);
+
+      const loanAmount = scheduleItem.loanAmount;
+      const remaining_balance = loanAmount - totalPaidAmount;
 
       console.log('Processing schedule item:', {
         id: scheduleItem.id,
         expected: scheduleItem.expected_amount,
         remaining: remainingPayment,
+        remaining_balance: remaining_balance,
+        amount_paid: currentPaymentAmount,
+        totalPaidAmount: totalPaidAmount,
+        status: scheduleItem.status,
+        loanAmount: loanAmount,
       });
 
       try {
         if (remainingPayment >= scheduleItem.expected_amount) {
           // Full payment case
-          await this.processFullPayment(prisma, scheduleItem);
+          await this.processFullPayment(prisma, scheduleItem, juntaId);
           remainingPayment -= scheduleItem.expected_amount;
         } else if (remainingPayment > 0) {
           // Partial payment case
@@ -586,9 +638,14 @@ export class PrestamosService {
             prisma,
             scheduleItem,
             remainingPayment,
+            remaining_balance,
+            currentPaymentAmount,
+            totalPaidAmount,
+            loanAmount,
+            juntaId,
           );
+          break; // Stop after processing partial payment
         } else if (scheduleItem.due_date < today) {
-          // Overdue case
           await this.processOverduePayment(prisma, scheduleItem);
         }
       } catch (error) {
@@ -604,32 +661,182 @@ export class PrestamosService {
   private async processFullPayment(
     prisma: PrismaClient,
     scheduleItem: PaymentSchedule,
+    juntaId: string,
   ): Promise<void> {
+    const newRemainingBalance =
+      scheduleItem.remaining_balance - scheduleItem.expected_amount;
+    console.log('juntaId :', juntaId);
+
     await prisma.paymentSchedule.update({
       where: { id: scheduleItem.id },
-      data: { status: PaymentScheduleStatus.PAID },
+      data: {
+        status: PaymentScheduleStatus.PAID,
+        paid_amount: scheduleItem.expected_amount,
+        remaining_balance: newRemainingBalance,
+        loanAmount: scheduleItem.loanAmount,
+      },
+    });
+    // Update subsequent installments
+    await prisma.paymentSchedule.updateMany({
+      where: {
+        prestamoId: scheduleItem.prestamoId,
+        installment_number: {
+          gt: scheduleItem.installment_number,
+        },
+      },
+      data: {
+        remaining_balance: newRemainingBalance,
+        loanAmount: scheduleItem.loanAmount,
+      },
     });
   }
+
+  // private async processPartialPayment(
+  //   prisma: PrismaClient,
+  //   scheduleItem: PaymentSchedule,
+  //   remainingPayment: number,
+  //   remaining_balance: number,
+  //   currentPaymentAmount: number,
+  //   totalPaidAmount: number,
+  //   loanAmount: number,
+  //   juntaId: string,
+  // ): Promise<number> {
+  //   // The new remaining balance should be current remaining balance minus the payment
+  //   console.log('juntaId: ', juntaId);
+  //   console.log('passed loanAmount: ', loanAmount);
+
+  //   console.log('Processing partial payment:', {
+  //     remainingPayment: remainingPayment,
+  //     remaining_balance: remaining_balance,
+  //     currentPayment: currentPaymentAmount,
+  //     totalPaidAmount: totalPaidAmount,
+  //     loanAmount: loanAmount,
+  //   });
+
+  //   // Update current installment
+  //   await prisma.paymentSchedule.update({
+  //     where: { id: scheduleItem.id },
+  //     data: {
+  //       status: PaymentScheduleStatus.PARTIAL,
+  //       paid_amount: currentPaymentAmount,
+  //       remaining_balance: remaining_balance,
+  //       expected_amount: scheduleItem.expected_amount,
+  //       loanAmount: loanAmount,
+  //     },
+  //   });
+  //   const expectedRemainingBalance = scheduleItem.principal + scheduleItem.interest;
+  //   // Update all subsequent installments with the new remaining balance
+  //   console.log('expectedRemainingBalance: ', expectedRemainingBalance);
+
+  //   const nextInstallment = await prisma.paymentSchedule.findFirst({
+  //     where: {
+  //       prestamoId: scheduleItem.prestamoId,
+  //       installment_number: {
+  //         gt: scheduleItem.installment_number,
+  //       },
+  //     },
+  //     orderBy: {
+  //       installment_number: 'asc',
+  //     },
+  //   });
+  //   const nextRemainingBalance =
+  //     expectedRemainingBalance - nextInstallment.expected_amount;
+  //   await prisma.paymentSchedule.updateMany({
+  //     where: {
+  //       prestamoId: scheduleItem.prestamoId,
+  //       installment_number: {
+  //         gt: scheduleItem.installment_number,
+  //       },
+  //     },
+  //     data: {
+  //       remaining_balance: nextRemainingBalance,
+  //       loanAmount: loanAmount,
+  //     },
+  //   });
+
+  //   // If this installment isn't fully paid, don't proceed to next ones
+  //   if (currentPaymentAmount < scheduleItem.expected_amount) {
+  //     return 0;
+  //   }
+
+  //   return remainingPayment;
+  // }
 
   private async processPartialPayment(
     prisma: PrismaClient,
     scheduleItem: PaymentSchedule,
     remainingPayment: number,
+    remaining_balance: number,
+    currentPaymentAmount: number,
+    totalPaidAmount: number,
+    loanAmount: number,
+    juntaId: string,
   ): Promise<number> {
-    const remainingAmount = Math.max(
-      scheduleItem.expected_amount - remainingPayment,
-      0,
-    );
-
+    // For partial payment (first installment)
     await prisma.paymentSchedule.update({
       where: { id: scheduleItem.id },
       data: {
         status: PaymentScheduleStatus.PARTIAL,
-        expected_amount: remainingAmount,
+        paid_amount: currentPaymentAmount,
+        remaining_balance: Number((loanAmount - totalPaidAmount).toFixed(2)), // 12.84 - 1.24 = 11.6
+        expected_amount: scheduleItem.expected_amount,
+        loanAmount: loanAmount,
       },
     });
 
-    return remainingAmount > 0 ? remainingPayment - remainingAmount : 0;
+    // Get future installments in order
+    const futureInstallments = await prisma.paymentSchedule.findMany({
+      where: {
+        prestamoId: scheduleItem.prestamoId,
+        installment_number: {
+          gt: scheduleItem.installment_number,
+        },
+      },
+      orderBy: {
+        installment_number: 'asc',
+      },
+    });
+
+    // For the second installment, assume first is fully paid
+    let runningBalance = loanAmount - scheduleItem.expected_amount;
+
+    for (const [index, installment] of futureInstallments.entries()) {
+      if (index === 0) {
+        // Second installment: 12.84 - 2.24 - 2.20 = 8.4
+        runningBalance = Number(
+          (
+            loanAmount -
+            scheduleItem.expected_amount -
+            installment.expected_amount
+          ).toFixed(2),
+        );
+      } else {
+        // Subsequent installments: subtract their expected_amount from previous balance
+        runningBalance = Number(
+          (runningBalance - installment.expected_amount).toFixed(2),
+        );
+      }
+
+      await prisma.paymentSchedule.update({
+        where: { id: installment.id },
+        data: {
+          remaining_balance: Math.max(0, runningBalance),
+          loanAmount: loanAmount,
+          paid_amount: 0,
+        },
+      });
+
+      console.log(`Installment ${installment.installment_number}:`, {
+        expectedAmount: installment.expected_amount,
+        newRemainingBalance: runningBalance,
+      });
+    }
+
+    if (currentPaymentAmount < scheduleItem.expected_amount) {
+      return 0;
+    }
+
+    return remainingPayment;
   }
 
   private async processOverduePayment(
@@ -648,6 +855,8 @@ export class PrestamosService {
     userId: string,
     userRole: UserRole,
   ) {
+    console.log('userId: ', userId);
+    console.log('userRole: ', userRole);
     const prestamo = await this.prisma.prestamoNew.findUnique({
       where: { id: prestamoId },
       include: {
@@ -745,7 +954,8 @@ export class PrestamosService {
   }
 
   async getRemainingPayments(id: string, userId: string, userRole: UserRole) {
-     console.log('getRemainingPayments id from service: ', id);
+    console.log('userRole: ', userRole);
+    console.log('userId: ', userId);
     const prestamo = await this.prisma.prestamoNew.findUnique({
       where: { id },
       include: {
@@ -780,21 +990,25 @@ export class PrestamosService {
     );
     const nextPaymentDue = prestamo.paymentSchedule[0];
     const nextPaymentDate = nextPaymentDue?.due_date;
+
     if (prestamo.remaining_amount === 0) {
       return {
         totalPaid,
         remainingAmount: 0,
         remainingPayments: [],
         nextPaymentDue: null,
+        nextPaymentRemainingBalance: 0, // Add this
         nextPaymentDate: null,
         isOverdue: false,
       };
     }
+
     return {
       totalPaid,
       remainingAmount: prestamo.remaining_amount,
       remainingPayments: prestamo.paymentSchedule,
       nextPaymentDue: nextPaymentDue || null,
+      nextPaymentRemainingBalance: nextPaymentDue?.remaining_balance || 0, // Add this
       nextPaymentDate,
       isOverdue:
         nextPaymentDate &&
@@ -1126,6 +1340,12 @@ export class PrestamosService {
 
   async getLoanAnalytics(id: string, userId: string, userRole: UserRole) {
     const prestamo = await this.findOne(id, userId, userRole);
+
+    const totalSchedulePaid = prestamo.paymentSchedule.reduce(
+      (sum, schedule) => sum + schedule.paid_amount,
+      0,
+    );
+
     const paidSchedules = await this.prisma.paymentSchedule.count({
       where: {
         prestamoId: id,
@@ -1145,6 +1365,7 @@ export class PrestamosService {
     return {
       totalAmount: prestamo.amount,
       totalPaid,
+      totalSchedulePaid, // Add this to show total paid amount in schedule
       remainingAmount: prestamo.remaining_amount,
       totalInterest,
       paidInstallments: paidSchedules,
@@ -1159,7 +1380,6 @@ export class PrestamosService {
       ),
     };
   }
-
   async getJuntaLoanSummary(
     juntaId: string,
     userId: string,
@@ -1290,7 +1510,6 @@ export class PrestamosService {
     userRole: UserRole,
   ) {
     const prestamo = await this.findOne(id, userId, userRole);
-
     // Check if user has permission to update prestamos
     const hasPermission =
       userRole === 'ADMIN' ||
