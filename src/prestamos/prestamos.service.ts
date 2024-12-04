@@ -594,15 +594,10 @@ export class PrestamosService {
     prestamoId: string,
     juntaId: string,
   ): Promise<void> {
-    let remainingPayment = 0;
+    // Track the remaining amount of the current payment
+    let remainingPayment = currentPaymentAmount;
+
     const today = new Date();
-
-    console.log('prestamoId: ', prestamoId);
-
-    console.log(
-      'Processing payment update - Total paid amount:',
-      totalPaidAmount,
-    );
 
     for (const scheduleItem of prestamo.paymentSchedule) {
       // Skip already PAID installments
@@ -610,41 +605,56 @@ export class PrestamosService {
         continue;
       }
 
-      remainingPayment = scheduleItem.expected_amount - currentPaymentAmount;
-      console.log('remainingPayment: ', remainingPayment);
+      // Calculate total amount available for this installment
+      // Includes both previously paid amount and portion of current payment
+      const totalPaidForInstallment =
+        scheduleItem.paid_amount + remainingPayment;
 
       const loanAmount = scheduleItem.loanAmount;
       const remaining_balance = loanAmount - totalPaidAmount;
 
-      console.log('Processing schedule item:', {
-        id: scheduleItem.id,
-        expected: scheduleItem.expected_amount,
-        remaining: remainingPayment,
-        remaining_balance: remaining_balance,
-        amount_paid: currentPaymentAmount,
-        totalPaidAmount: totalPaidAmount,
-        status: scheduleItem.status,
-        loanAmount: loanAmount,
+      console.log('Processing installment:', {
+        installmentNumber: scheduleItem.installment_number,
+        expectedAmount: scheduleItem.expected_amount,
+        previouslyPaid: scheduleItem.paid_amount,
+        remainingPayment,
+        totalPaidForInstallment,
       });
 
       try {
-        if (remainingPayment >= scheduleItem.expected_amount) {
-          // Full payment case
+        if (totalPaidForInstallment >= scheduleItem.expected_amount) {
+          // Calculate how much of the remaining payment was needed for this installment
+          const amountNeededForThis =
+            scheduleItem.expected_amount - scheduleItem.paid_amount;
+
+          // Process the full payment
           await this.processFullPayment(prisma, scheduleItem, juntaId);
-          remainingPayment -= scheduleItem.expected_amount;
+
+          // Reduce remaining payment by only what was needed
+          remainingPayment = Math.max(
+            0,
+            remainingPayment - amountNeededForThis,
+          );
+
+          console.log('After full payment:', {
+            amountNeeded: amountNeededForThis,
+            remainingPayment,
+          });
+
+          // If no remaining payment, stop processing
+          if (remainingPayment === 0) break;
         } else if (remainingPayment > 0) {
-          // Partial payment case
-          remainingPayment = await this.processPartialPayment(
+          await this.processPartialPayment(
             prisma,
             scheduleItem,
             remainingPayment,
             remaining_balance,
-            currentPaymentAmount,
+            remainingPayment, // Use remaining payment instead of full amount
             totalPaidAmount,
             loanAmount,
             juntaId,
           );
-          break; // Stop after processing partial payment
+          break; // Stop after partial payment
         } else if (scheduleItem.due_date < today) {
           await this.processOverduePayment(prisma, scheduleItem);
         }
@@ -662,7 +672,7 @@ export class PrestamosService {
     prisma: PrismaClient,
     scheduleItem: PaymentSchedule,
     juntaId: string,
-  ): Promise<void> {
+  ): Promise<number> {
     const newRemainingBalance =
       scheduleItem.remaining_balance - scheduleItem.expected_amount;
     console.log('juntaId :', juntaId);
@@ -689,6 +699,8 @@ export class PrestamosService {
         loanAmount: scheduleItem.loanAmount,
       },
     });
+    console.log('newRemainingBalance: ', newRemainingBalance);
+    return newRemainingBalance;
   }
 
   // private async processPartialPayment(
