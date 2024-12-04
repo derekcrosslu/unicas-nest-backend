@@ -460,70 +460,6 @@ export class PrestamosService {
     }
   }
 
-  // private calculatePaymentSchedule(
-  //   amount: number,
-  //   monthly_interest: number,
-  //   number_of_installments: number,
-  //   remaining_balance: number,
-  //   start_date: Date,
-  //   payment_type: PaymentType,
-  //   loan_type: LoanType,
-  // ): PaymentScheduleItem[] {
-  //   const calculation = this.loanCalculator.calculateLoan(
-  //     amount,
-  //     monthly_interest,
-  //     number_of_installments,
-  //     loan_type,
-  //     payment_type,
-  //   );
-
-  //   let intervalDays: number;
-  //   switch (payment_type) {
-  //     case 'SEMANAL':
-  //       intervalDays = 7;
-  //       break;
-  //     case 'QUINCENAL':
-  //       intervalDays = 15;
-  //       break;
-  //     case 'MENSUAL':
-  //     default:
-  //       intervalDays = 30;
-  //       break;
-  //   }
-
-  //   const totalToRepay = calculation.totalPayment;
-  //   console.log('totalToRepay: ', totalToRepay);
-  //   let currentBalance = totalToRepay;
-  //   const totalLoanAmount =
-  //     calculation.amortizationSchedule?.reduce((sum, row) => {
-  //       return sum + row.payment;
-  //     }, 0) || amount;
-  //   return (
-  //     calculation.amortizationSchedule?.map((row, index) => {
-  //       const due_date = new Date(start_date);
-  //       due_date.setDate(due_date.getDate() + intervalDays * (index + 1));
-  //       // Calculate remaining balance
-  //       currentBalance = currentBalance - row.payment;
-  //       // First payment shows total - first payment
-  //       // Subsequent payments show previous balance - current payment
-  //       const remaining_balance = Number(currentBalance.toFixed(2));
-  //       console.log('remaining_balance: ', remaining_balance);
-
-  //       return {
-  //         due_date,
-  //         expected_amount: row.payment,
-  //         paid_amount: 0,
-  //         remaining_balance,
-  //         loanAmount: totalLoanAmount,
-  //         principal: row.principal,
-  //         interest: row.interest,
-  //         installment_number: index + 1,
-  //         status: PaymentScheduleStatus.PENDING,
-  //       };
-  //     }) || []
-  //   );
-  // }
-
   private calculatePaymentSchedule(
     amount: number,
     monthly_interest: number,
@@ -703,77 +639,6 @@ export class PrestamosService {
     return newRemainingBalance;
   }
 
-  // private async processPartialPayment(
-  //   prisma: PrismaClient,
-  //   scheduleItem: PaymentSchedule,
-  //   remainingPayment: number,
-  //   remaining_balance: number,
-  //   currentPaymentAmount: number,
-  //   totalPaidAmount: number,
-  //   loanAmount: number,
-  //   juntaId: string,
-  // ): Promise<number> {
-  //   // The new remaining balance should be current remaining balance minus the payment
-  //   console.log('juntaId: ', juntaId);
-  //   console.log('passed loanAmount: ', loanAmount);
-
-  //   console.log('Processing partial payment:', {
-  //     remainingPayment: remainingPayment,
-  //     remaining_balance: remaining_balance,
-  //     currentPayment: currentPaymentAmount,
-  //     totalPaidAmount: totalPaidAmount,
-  //     loanAmount: loanAmount,
-  //   });
-
-  //   // Update current installment
-  //   await prisma.paymentSchedule.update({
-  //     where: { id: scheduleItem.id },
-  //     data: {
-  //       status: PaymentScheduleStatus.PARTIAL,
-  //       paid_amount: currentPaymentAmount,
-  //       remaining_balance: remaining_balance,
-  //       expected_amount: scheduleItem.expected_amount,
-  //       loanAmount: loanAmount,
-  //     },
-  //   });
-  //   const expectedRemainingBalance = scheduleItem.principal + scheduleItem.interest;
-  //   // Update all subsequent installments with the new remaining balance
-  //   console.log('expectedRemainingBalance: ', expectedRemainingBalance);
-
-  //   const nextInstallment = await prisma.paymentSchedule.findFirst({
-  //     where: {
-  //       prestamoId: scheduleItem.prestamoId,
-  //       installment_number: {
-  //         gt: scheduleItem.installment_number,
-  //       },
-  //     },
-  //     orderBy: {
-  //       installment_number: 'asc',
-  //     },
-  //   });
-  //   const nextRemainingBalance =
-  //     expectedRemainingBalance - nextInstallment.expected_amount;
-  //   await prisma.paymentSchedule.updateMany({
-  //     where: {
-  //       prestamoId: scheduleItem.prestamoId,
-  //       installment_number: {
-  //         gt: scheduleItem.installment_number,
-  //       },
-  //     },
-  //     data: {
-  //       remaining_balance: nextRemainingBalance,
-  //       loanAmount: loanAmount,
-  //     },
-  //   });
-
-  //   // If this installment isn't fully paid, don't proceed to next ones
-  //   if (currentPaymentAmount < scheduleItem.expected_amount) {
-  //     return 0;
-  //   }
-
-  //   return remainingPayment;
-  // }
-
   private async processPartialPayment(
     prisma: PrismaClient,
     scheduleItem: PaymentSchedule,
@@ -785,6 +650,7 @@ export class PrestamosService {
     juntaId: string,
   ): Promise<number> {
     // For partial payment (first installment)
+    console.log('juntaId: ', juntaId);
     await prisma.paymentSchedule.update({
       where: { id: scheduleItem.id },
       data: {
@@ -897,11 +763,11 @@ export class PrestamosService {
       throw new BadRequestException('Payment amount must be greater than zero');
     }
 
-    if (amount > prestamo.remaining_amount) {
-      throw new BadRequestException(
-        `Payment amount (${amount}) exceeds remaining balance (${prestamo.remaining_amount})`,
-      );
-    }
+    // if (amount > prestamo.remaining_amount) {
+    //   throw new BadRequestException(
+    //     `Payment amount (${amount}) exceeds remaining balance (${prestamo.remaining_amount})`,
+    //   );
+    // }
 
     const nextPayment = prestamo.paymentSchedule[0];
     if (!nextPayment) {
