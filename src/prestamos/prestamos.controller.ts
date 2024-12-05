@@ -8,7 +8,6 @@ import {
   UseGuards,
   Request,
   Put,
-  ForbiddenException,
 } from '@nestjs/common';
 import { PrestamosService } from './prestamos.service';
 import { RolesGuard } from '../auth/guards/roles.guard';

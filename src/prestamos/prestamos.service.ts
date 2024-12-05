@@ -241,6 +241,15 @@ export class PrestamosService {
       );
     }
 
+    
+    await this.prisma.junta.update({
+      where: { id: prestamo.juntaId },
+      data: {
+        current_capital: { increment: amount },
+        available_capital: { increment: amount },
+      },
+    })
+
     const totalPaid =
       prestamo.pagos.reduce((sum, pago) => sum + pago.amount, 0) + amount;
 
@@ -459,6 +468,159 @@ export class PrestamosService {
       throw new Error('Failed to delete payment and restore related records');
     }
   }
+
+
+
+
+
+//   async deletePago(pagoId: string, userId: string, userRole: UserRole) {
+//   // First, find the payment and its associated loan
+//   const pago = await this.prisma.pagoPrestamoNew.findUnique({
+//     where: { id: pagoId },
+//     include: {
+//       prestamo: {
+//         include: {
+//           junta: true,
+//           pagos: {
+//             orderBy: {
+//               date: 'desc',
+//             },
+//           },
+//           paymentSchedule: {
+//             orderBy: {
+//               installment_number: 'asc',
+//             },
+//           },
+//         },
+//       },
+//     },
+//   });
+
+//   if (!pago) {
+//     throw new NotFoundException('Payment not found');
+//   }
+
+//   // Check permissions
+//   const hasPermission =
+//     userRole === 'ADMIN' ||
+//     (userRole === 'FACILITATOR' &&
+//       pago.prestamo.junta.createdById === userId);
+
+//   if (!hasPermission) {
+//     throw new ForbiddenException(
+//       'You do not have permission to delete this payment',
+//     );
+//   }
+
+//   try {
+//     return await this.prisma.$transaction(async (prisma) => {
+//       // Delete capital movement associated with the payment
+//       await prisma.capitalMovement.deleteMany({
+//         where: { pagoId },
+//       });
+
+//       // Calculate new remaining amount for the loan
+//       const newRemainingAmount =
+//         pago.prestamo.amount -
+//         pago.prestamo.pagos
+//           .filter((p) => p.id !== pagoId)
+//           .reduce((sum, p) => sum + p.amount, 0);
+
+//       // Find the correct installment to reset from
+//       const paymentDate = new Date(pago.date);
+//       const resetFromInstallment = pago.prestamo.paymentSchedule.find(
+//         (ps) => {
+//           const dueDate = new Date(ps.due_date);
+//           return (
+//             // Find unpaid installment that's due on or after payment date
+//             (ps.status !== 'PAID' && dueDate >= paymentDate) ||
+//             // Or find the exact installment this payment was for
+//             (dueDate.getMonth() === paymentDate.getMonth() &&
+//               dueDate.getFullYear() === paymentDate.getFullYear())
+//           );
+//         },
+//       )?.installment_number || 1;
+
+//       // Get affected schedules from the reset point
+//       const affectedSchedules = pago.prestamo.paymentSchedule
+//         .filter((s) => s.installment_number >= resetFromInstallment)
+//         .sort((a, b) => a.installment_number - b.installment_number);
+
+//       // Update each affected schedule with correct balance
+//       let currentBalance = newRemainingAmount;
+//       for (const schedule of affectedSchedules) {
+//         const expectedAmount = schedule.principal + schedule.interest;
+//         const dueDate = new Date(schedule.due_date);
+//         const isPreviouslyPaid = dueDate < paymentDate;
+
+//         await prisma.paymentSchedule.update({
+//           where: { id: schedule.id },
+//           data: {
+//             status: isPreviouslyPaid ? 'PAID' : 'PENDING',
+//             remaining_balance: currentBalance,
+//             paid_amount: isPreviouslyPaid ? expectedAmount : 0,
+//             expected_amount: expectedAmount,
+//           },
+//         });
+        
+//         if (!isPreviouslyPaid) {
+//           currentBalance = Math.max(0, currentBalance - schedule.principal);
+//         }
+//       }
+
+//       // Restore junta's capital if payment affected it
+//       if (pago.affects_capital) {
+//         await prisma.junta.update({
+//           where: { id: pago.prestamo.juntaId },
+//           data: {
+//             current_capital: {
+//               decrement: pago.amount,
+//             },
+//             available_capital: {
+//               decrement: pago.amount,
+//             },
+//           },
+//         });
+//       }
+
+//       // Update loan status and remaining amount
+//       await prisma.prestamoNew.update({
+//         where: { id: pago.prestamoId },
+//         data: {
+//           status:
+//             newRemainingAmount === pago.prestamo.amount
+//               ? 'PENDING'
+//               : 'PARTIAL',
+//           remaining_amount: newRemainingAmount,
+//           paid: false,
+//         },
+//       });
+
+//       // Finally, delete the payment
+//       await prisma.pagoPrestamoNew.delete({
+//         where: { id: pagoId },
+//       });
+
+//       return {
+//         message: 'Payment deleted successfully',
+//         details: {
+//           amount: pago.amount,
+//           capitalRestored: pago.affects_capital ? pago.amount : 0,
+//           loanUpdated: {
+//             newRemainingAmount,
+//             newStatus:
+//               newRemainingAmount === pago.prestamo.amount
+//                 ? 'PENDING'
+//                 : 'PARTIAL',
+//           },
+//         },
+//       };
+//     });
+//   } catch (error) {
+//     this.logger.error(`Error deleting payment ${pagoId}:`, error);
+//     throw new Error('Failed to delete payment and restore related records');
+//   }
+// }
 
   private calculatePaymentSchedule(
     amount: number,
