@@ -25,8 +25,28 @@ export const PaymentScheduleStatus = {
   OVERDUE: 'OVERDUE',
 } as const;
 
-export type PaymentScheduleStatusType =
+export type PaymentScheduleStatus =
   (typeof PaymentScheduleStatus)[keyof typeof PaymentScheduleStatus];
+
+export interface PaymentScheduleItem {
+  id: string;
+  installment_number: number;
+  expected_amount: number;
+  paid_amount: number;
+  remaining_balance: number;
+  loanAmount: number;
+  interest: number;
+  principal: number;
+  due_date: Date;
+  status: PaymentScheduleStatus;
+  prestamoId: string;
+}
+
+export interface PaymentUpdateResult {
+  updatedStatus: PaymentScheduleStatus;
+  paidAmount: number;
+  remainingBalance: number;
+}
 
 export enum LoanType {
   CUOTA_REBATIR = 'CUOTA_REBATIR',
@@ -143,17 +163,17 @@ export interface ProcessPaymentDTO {
   amount: number;
 }
 
-export interface PaymentScheduleItem {
-  due_date: Date;
-  expected_amount: number;
-  paid_amount: number;
-  principal: number;
-  interest: number;
-  installment_number: number;
-  remaining_balance: number;
-  loanAmount: number;
-  status: 'PENDING' | 'PAID' | 'PARTIAL' | 'OVERDUE';
-}
+// export interface PaymentScheduleItem {
+//   due_date: Date;
+//   expected_amount: number;
+//   paid_amount: number;
+//   principal: number;
+//   interest: number;
+//   installment_number: number;
+//   remaining_balance: number;
+//   loanAmount: number;
+//   status: 'PENDING' | 'PAID' | 'PARTIAL' | 'OVERDUE';
+// }
 
 // Response Types
 export interface PrestamoResponse {
