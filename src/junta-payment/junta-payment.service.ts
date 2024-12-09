@@ -244,6 +244,9 @@ export class JuntaPaymentHistoryService {
               payment,
               previousPayments,
             );
+
+            const prestamo = prestamos.find(prestamo=>prestamo.id === payment.prestamoId)
+            const loanAmount = prestamo?.paymentSchedule[0]?.loanAmount || 0;
             const cumulativeAmounts = this.calculateCumulativeAmounts(
               previousPayments,
               payment.prestamo.paymentSchedule,
@@ -254,7 +257,6 @@ export class JuntaPaymentHistoryService {
               payment.prestamo.paymentSchedule,
               payment.date,
             );
-
             return {
               id: payment.id,
               affects_capital: payment.affects_capital,
@@ -262,10 +264,9 @@ export class JuntaPaymentHistoryService {
               date: payment.date,
               prestamoId: payment.prestamoId,
               original_pago_id: payment.original_pago_id,
-              interest_paid: interestPaid,
-              principal_paid: payment.affects_capital
-                ? payment.amount - interestPaid
-                : 0,
+              interest_paid: payment.interest_amount,
+              principal_paid: payment.capital_amount,
+              loanAmount: Number(loanAmount).toFixed(2),
               remaining_amount: cumulativeAmounts.remainingAmount,
               remaining_interest: cumulativeAmounts.remainingInterest,
               remaining_installments: remainingInstallments, // Add this property

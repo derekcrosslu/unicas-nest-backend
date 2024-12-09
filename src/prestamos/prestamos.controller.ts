@@ -84,7 +84,13 @@ export class PrestamosController {
   @ApiParam({ name: 'id', type: 'string' })
   async createPago(
     @Param('id') id: string,
-    @Body() data: { amount: number },
+    @Body() data: {
+      amount: number;
+      principal_paid: number;
+      interest_paid: number;
+      date: Date;
+      is_different_payment: boolean;
+    },
     @Request() req: RequestWithUser,
   ) {
     // First validate the payment
@@ -98,7 +104,9 @@ export class PrestamosController {
     // If validation passes, create the payment
     return this.prestamosService.createPago(
       id,
-      data.amount,
+       data.amount,
+       data.principal_paid,
+      data.interest_paid,
       req.user.id,
       req.user.role,
     );

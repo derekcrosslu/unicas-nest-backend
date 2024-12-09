@@ -122,6 +122,8 @@ model Multa {
 model PagoPrestamoNew {
   id                String            @id @default(uuid())
   amount            Float
+  capital_amount    Float             @default(0) 
+  interest_amount   Float             @default(0) 
   date              DateTime          @default(now())
   prestamoId        String
   original_pago_id  String?           @map("original_pago_id")

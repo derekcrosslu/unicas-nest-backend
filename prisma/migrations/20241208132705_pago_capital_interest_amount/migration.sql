@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "PagoPrestamoNew" ADD COLUMN     "capital_amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "interest_amount" DOUBLE PRECISION NOT NULL DEFAULT 0;

@@ -115,6 +115,13 @@ export interface CapitalSnapshot {
   calculation?: LoanCalculation;
 }
 
+export interface PaymentSplitInput {
+  capital: number;
+  interest: number;
+  total: number;
+}
+
+
 export interface PaymentSchedule {
   id: string;
   due_date: Date;
@@ -134,6 +141,9 @@ export interface PaymentSchedule {
 export interface Pago {
   id: string;
   amount: number;
+  principal_paid: number;
+  interest_paid: number;
+  loan_with_interest: number;
   date: Date;
   affects_capital: boolean;
   prestamo: PrestamoResponse;
@@ -230,6 +240,9 @@ export interface PaymentResponse {
   id: string;
   amount: number;
   date: Date;
+  interest_paid: number;
+  principal_paid: number;
+  loan_with_interest: number;
   prestamo: {
     id: string;
     loan_code: string;
@@ -268,6 +281,9 @@ export interface JuntaLoanSummary {
   totalAmountLent: number;
   totalAmountPaid: number;
   totalInterestEarned: number;
+  totalRemainingAmount: number;
+  totalOverdueLoans: number;
+  loan_with_interest: number;
   overdueLoans: number;
 }
 
