@@ -75,7 +75,6 @@ export class PrestamosController {
     @Body() data: CreatePrestamoDto,
     @Request() req: RequestWithUser,
   ): Promise<PrestamoResponse> {
-    console.log('data: ', data);
     return this.prestamosService.create(data, req.user.id, req.user.role);
   }
 
@@ -88,6 +87,7 @@ export class PrestamosController {
       amount: number;
       principal_paid: number;
       interest_paid: number;
+      installment_number: number;
       date: Date;
       is_different_payment: boolean;
     },
@@ -100,13 +100,16 @@ export class PrestamosController {
       req.user.id,
       req.user.role,
     );
-
+    
+    
+    console.log("installment_number:-------------------------CREATE PAGO REQUEST ", data);
     // If validation passes, create the payment
     return this.prestamosService.createPago(
       id,
        data.amount,
        data.principal_paid,
       data.interest_paid,
+      data.installment_number,
       req.user.id,
       req.user.role,
     );
@@ -169,7 +172,6 @@ export class PrestamosController {
     @Param('id', new CleanUuidPipe()) id: string,
     @Request() req: RequestWithUser,
   ) {
-    console.log('getRemainingPayments id from controller: ', id);
     return this.prestamosService.getRemainingPayments(
       id,
       req.user.id,

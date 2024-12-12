@@ -251,7 +251,8 @@ export class JuntaPaymentHistoryService {
               previousPayments,
               payment.prestamo.paymentSchedule,
             );
-
+            
+            console.log("cumulativeAmounts: ", cumulativeAmounts);
             // Calculate remaining installments
             const remainingInstallments = this.calculateRemainingInstallments(
               payment.prestamo.paymentSchedule,
@@ -333,15 +334,35 @@ export class JuntaPaymentHistoryService {
         };
       }
 
-      const totalExpected = paymentSchedule.reduce(
-        (sum, schedule) => sum + (schedule?.expected_amount || 0),
+      // const totalExpected = paymentSchedule.reduce(
+      //   (sum, schedule) => sum + (schedule?.expected_amount || 0),
+      //   0,
+      // );
+
+
+
+      const totalExpected_capital = paymentSchedule.reduce(
+        (sum, schedule) => {
+          // console.log("schedule: ", schedule);
+          // console.log("sum: ", sum);
+
+          return sum + (schedule?.principal  || 0);
+        },
         0,
       );
 
-      const totalPaid = (payments || []).reduce(
-        (sum, payment) => sum + (payment?.amount || 0),
-        0,
-      );
+
+      // const totalPaid = (payments || []).reduce(
+      //   (sum, payment) => sum + (payment?.amount || 0),
+      //   0,
+      // );
+
+            const totalPaid_capital = (payments || []).reduce(
+              (sum, payment) =>
+                sum + ((payment?.amount -payment?.interest_amount )|| 0),
+              0,
+            );
+
 
       const totalExpectedInterest = paymentSchedule.reduce(
         (sum, schedule) => sum + (schedule?.interest || 0),
@@ -357,9 +378,10 @@ export class JuntaPaymentHistoryService {
           ),
         0,
       );
+      const totalPaid = Math.max(0, totalExpected_capital - totalPaid_capital);
 
       return {
-        remainingAmount: Math.max(0, totalExpected - totalPaid),
+        remainingAmount: Math.max(0, totalExpected_capital - totalPaid_capital),
         remainingInterest: Math.max(
           0,
           totalExpectedInterest - totalPaidInterest,

@@ -121,18 +121,23 @@ export class LoanCalculatorService {
     monthlyInterest: number,
     numberOfInstallments: number,
   ): LoanCalculation {
-    const monthlyRate = monthlyInterest / 100;
-    const monthlyPayment =
-      (amount * monthlyRate * Math.pow(1 + monthlyRate, numberOfInstallments)) /
-      (Math.pow(1 + monthlyRate, numberOfInstallments) - 1);
+    // const monthlyRate = monthlyInterest / 100;
+    // const monthlyPayment =
+    //   (amount * monthlyRate * Math.pow(1 + monthlyRate, numberOfInstallments)) /
+    //   (Math.pow(1 + monthlyRate, numberOfInstallments) - 1);
+
+    const monthlyRate = (monthlyInterest * numberOfInstallments) / 100;
+    const loanTotalInterestAmount = monthlyRate * amount;
+    const principal = amount / numberOfInstallments;
+    const interest = loanTotalInterestAmount / numberOfInstallments;
+    const monthlyPayment = principal + interest;
+
 
     let remainingBalance = amount;
     const amortizationSchedule: AmortizationRow[] = [];
     let totalInterest = 0;
 
     for (let i = 1; i <= numberOfInstallments; i++) {
-      const interest = remainingBalance * monthlyRate;
-      const principal = monthlyPayment - interest;
       remainingBalance -= principal;
       totalInterest += interest;
 

@@ -129,7 +129,7 @@ model PagoPrestamoNew {
   original_pago_id  String?           @map("original_pago_id")
   affects_capital   Boolean           @default(true) @map("affects_capital")
   agendaItemId      String?
-
+installment_number  Int?              @default(0) 
   capital_movements CapitalMovement[]
   prestamo          PrestamoNew       @relation(fields: [prestamoId], references: [id])
   agendaItem        AgendaItem?       @relation(fields: [agendaItemId], references: [id])

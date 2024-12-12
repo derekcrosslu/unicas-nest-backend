@@ -143,6 +143,7 @@ export interface Pago {
   amount: number;
   principal_paid: number;
   interest_paid: number;
+  installment_number: number;
   loan_with_interest: number;
   date: Date;
   affects_capital: boolean;
