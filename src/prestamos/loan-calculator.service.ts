@@ -53,67 +53,91 @@ export class LoanCalculatorService {
     }
 
     // Adjust payment frequency based on payment type
-    const frequencyMultiplier = this.getFrequencyMultiplier(paymentType);
-    if (calculation.monthlyPayment) {
-      calculation.monthlyPayment =
-        calculation.monthlyPayment * frequencyMultiplier;
-    }
+    // const frequencyMultiplier = this.getFrequencyMultiplier(paymentType);
+    // if (calculation.monthlyPayment) {
+    //   calculation.monthlyPayment =
+    //     calculation.monthlyPayment * frequencyMultiplier;
+    // }
 
     return calculation;
   }
 
+  // private calculateVariableSchedule(
+  //   principal: number,
+  //   monthlyInterest: number,
+  //   numberOfPayments: number,
+  // ): LoanCalculation {
+  //   const monthlyRate = monthlyInterest / 100;
+  //   let remainingBalance = principal;
+  //   const principalPerPeriod = 0; // Equal principal portions
+  //   const amortizationSchedule: AmortizationRow[] = [];
+  //   let totalInterest = 0;
+
+  //   for (let i = 0; i < numberOfPayments; i++) {
+  //     // Interest varies based on remaining balance
+  //     const interest = remainingBalance * monthlyRate;
+  //     totalInterest += interest;
+
+  //     // Payment is principal portion plus interest
+  //     const payment = interest;
+
+  //     // Update remaining balance
+  //     remainingBalance -= payment;
+
+  //     amortizationSchedule.push({
+  //       payment, // Variable payment amount
+  //       principal: principalPerPeriod, // Fixed principal amount
+  //       interest, // Decreasing interest amount
+  //       balance: Math.max(0, remainingBalance),
+  //     });
+  //   }
+
+  //   return {
+  //     monthlyPayment: null, // No fixed monthly payment in variable loans
+  //     totalPayment: amortizationSchedule.reduce(
+  //       (sum, row) => sum + row.payment,
+  //       0,
+  //     ),
+  //     totalInterest,
+  //     amortizationSchedule,
+  //   };
+  // }
   private calculateVariableSchedule(
-    principal: number,
+    amount: number,
     monthlyInterest: number,
-    numberOfPayments: number,
+    numberOfInstallments: number,
   ): LoanCalculation {
     const monthlyRate = monthlyInterest / 100;
-    let remainingBalance = principal;
-    const principalPerPeriod = principal / numberOfPayments; // Equal principal portions
+    const monthlyInterestPayment = amount * monthlyRate; // Interest payment per month
+    const totalInterest = amount * monthlyRate * numberOfInstallments;
+
+    // Create amortization schedule
     const amortizationSchedule: AmortizationRow[] = [];
-    let totalInterest = 0;
 
-    for (let i = 0; i < numberOfPayments; i++) {
-      // Interest varies based on remaining balance
-      const interest = remainingBalance * monthlyRate;
-      totalInterest += interest;
-
-      // Payment is principal portion plus interest
-      const payment = principalPerPeriod + interest;
-
-      // Update remaining balance
-      remainingBalance -= principalPerPeriod;
-
+    // Add monthly interest payments (all installments except the last one)
+    for (let i = 1; i < numberOfInstallments; i++) {
       amortizationSchedule.push({
-        payment, // Variable payment amount
-        principal: principalPerPeriod, // Fixed principal amount
-        interest, // Decreasing interest amount
-        balance: Math.max(0, remainingBalance),
+        payment: monthlyInterestPayment,
+        principal: 0,
+        interest: monthlyInterestPayment,
+        balance: amount, // Balance remains the same until final payment
       });
     }
 
+    // Add final payment (last interest payment + principal)
+    amortizationSchedule.push({
+      payment: amount + monthlyInterestPayment,
+      principal: amount,
+      interest: monthlyInterestPayment,
+      balance: 0,
+    });
+
     return {
-      monthlyPayment: null, // No fixed monthly payment in variable loans
-      totalPayment: amortizationSchedule.reduce(
-        (sum, row) => sum + row.payment,
-        0,
-      ),
+      monthlyPayment: monthlyInterestPayment,
+      totalPayment: amount + totalInterest,
       totalInterest,
       amortizationSchedule,
     };
-  }
-
-  private getFrequencyMultiplier(paymentType: PaymentType): number {
-    switch (paymentType) {
-      case 'MENSUAL':
-        return 1;
-      case 'QUINCENAL':
-        return 0.5;
-      case 'SEMANAL':
-        return 0.25;
-      default:
-        return 1;
-    }
   }
 
   calculateFixedInstallment(
@@ -131,7 +155,6 @@ export class LoanCalculatorService {
     const principal = amount / numberOfInstallments;
     const interest = loanTotalInterestAmount / numberOfInstallments;
     const monthlyPayment = principal + interest;
-
 
     let remainingBalance = amount;
     const amortizationSchedule: AmortizationRow[] = [];
