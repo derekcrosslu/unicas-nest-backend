@@ -22,7 +22,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "phone": "984722381",
+    "phone": "123456789",
     "password": "123123"
 }
 

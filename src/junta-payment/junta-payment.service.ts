@@ -251,8 +251,6 @@ export class JuntaPaymentHistoryService {
               previousPayments,
               payment.prestamo.paymentSchedule,
             );
-            
-            console.log("cumulativeAmounts: ", cumulativeAmounts);
             // Calculate remaining installments
             const remainingInstallments = this.calculateRemainingInstallments(
               payment.prestamo.paymentSchedule,
@@ -267,6 +265,7 @@ export class JuntaPaymentHistoryService {
               original_pago_id: payment.original_pago_id,
               interest_paid: payment.interest_amount,
               principal_paid: payment.capital_amount,
+              installment_number: payment.installment_number,
               loanAmount: Number(loanAmount).toFixed(2),
               remaining_amount: cumulativeAmounts.remainingAmount,
               remaining_interest: cumulativeAmounts.remainingInterest,
