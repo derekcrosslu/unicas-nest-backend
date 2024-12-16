@@ -277,6 +277,7 @@ export class JuntaPaymentHistoryService {
                 description: payment.prestamo.description,
                 status: payment.prestamo.status,
                 member: payment.prestamo.member,
+                loan_type: payment.prestamo.loan_type,
               },
             };
           } catch (error) {

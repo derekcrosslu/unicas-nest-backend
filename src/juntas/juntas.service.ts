@@ -299,9 +299,6 @@ export class JuntasService {
     }
 
     try {
-      console.log('trying to create user');
-      // Create new user if doesn't exist
-
       const hashedPassword = await bcrypt.hash(memberData.password, 10);
       
       const newUser = await this.prisma.user.create({
@@ -344,7 +341,6 @@ export class JuntasService {
         },
       });
       
-      console.log("newUser: ", newUser);
       return {
         ...newUser,
         junta,

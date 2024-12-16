@@ -125,9 +125,6 @@ export class PrestamosService {
       select: { loan_number: true },
     });
 
-    console.log('totalLoanAmount: ', totalLoanAmount);
-    console.log('amount: ', amount);
-
     const nextLoanNumber = (latestLoan?.loan_number || 0) + 1;
 
     return this.prisma.$transaction(async (prisma) => {
@@ -270,7 +267,6 @@ export class PrestamosService {
       prestamo.pagos.reduce((sum, pago) => sum + pago.capital_amount, 0) +
       capital_amount;
 
-    console.log('CREATE PAGO totalPaid 259: ', totalPaid);
     return this.prisma.$transaction(async (prisma) => {
       // Create the payment
       const pago = await prisma.pagoPrestamoNew.create({
@@ -293,7 +289,6 @@ export class PrestamosService {
       });
 
       const juntaId = prestamo.juntaId;
-      console.log('BEFORE updatePaymentScheduleStatuses amount 281: ', amount);
 
       // Update payment schedule status
       await this.updatePaymentScheduleStatuses(
@@ -320,26 +315,12 @@ export class PrestamosService {
           pagoId: pago.id,
         },
       });
-      console.log('BEFORE LOAN UPDATE (PAID or PARTIAL) - 308: ', {
-        'prestamo.remaining_amount': prestamo.remaining_amount,
-        totalPaid: totalPaid,
-      });
 
       const schedule = prestamo?.paymentSchedule.find(
         (payment) => payment.status === 'PENDING',
       );
       const loanRemainingAmount = prestamo.remaining_amount - capital_amount;
       // Update loan status
-      console.log(
-        'pago prestamo create verification 324:    ----------------------------------',
-        {
-          totalPaid: totalPaid,
-          prestamoAmount: prestamo.amount,
-          remainingAmount: prestamo.remaining_amount,
-          loanRemainingAmount: loanRemainingAmount,
-        },
-      );
-
       if (totalPaid >= prestamo.amount) {
         await prisma.prestamoNew.update({
           where: { id: prestamoId },
@@ -445,7 +426,6 @@ export class PrestamosService {
           const shouldUpdate =
             schedule.installment_number === installmentNumberDeleted;
             
-          console.log("schedule.id: ", schedule.id);
           
           if (shouldUpdate) {
             await prisma.paymentSchedule.update({
@@ -474,9 +454,7 @@ export class PrestamosService {
           });
         }
 
-        // Update loan's remaining amount by adding back the deleted payment
-        console.log('currentRemainingAmount: ', pago.prestamo.remaining_amount);
-        console.log("deletedPayment.capital_amount: ", deletedPayment.capital_amount);
+        // Update loan's remaining amount by adding back the deleted paymen
         await prisma.prestamoNew.update({
           where: { id: pago.prestamoId },
           data: {
@@ -727,13 +705,6 @@ export class PrestamosService {
         return sum + row.principal; // row.payment already includes both principal and interest
       }, 0) || amount;
 
-    console.log('calculatePaymentSchedule - Total loan calculation 537:', {
-      totalLoanAmount,
-      scheduledPayments: calculation.amortizationSchedule?.map(
-        (row) => row.payment,
-      ),
-    });
-
     // Initialize the current balance with total loan amount minus any payments
     let currentBalance = totalLoanAmount;
 
@@ -751,16 +722,6 @@ export class PrestamosService {
         currentBalance =
           totalLoanAmount - (totalPaidSoFar + cumulativePaymentsUpToNow);
 
-        console.log(
-          `BEFORE F RETURN Installment ${index + 1} calculation 561:`,
-          {
-            totalLoanAmount,
-            totalPaidSoFar,
-            cumulativePaymentsUpToNow,
-            currentBalance,
-            amount,
-          },
-        );
 
         return {
           id: '',
@@ -786,7 +747,7 @@ export class PrestamosService {
     totalPaidAmount: number,
     prestamoId: string,
   ): Promise<void> {
-    console.log('updatePaymentScheduleStatuses - prestamoId 593', prestamoId);
+
     let remainingPayment = payment.capital;
     const sortedSchedule = [...prestamo.paymentSchedule].sort(
       (a, b) => a.installment_number - b.installment_number,
@@ -813,15 +774,6 @@ export class PrestamosService {
         interest: payment.interest,
         total: payment.total,
       };
-
-      console.log('BEFORE PAYMENT FULL PROCESS 621:            ', {
-        capital: payment.capital,
-        interest: payment.interest,
-        total: payment.total,
-        scheduleItem: scheduleItem.expected_amount,
-        remainingExpected: remainingExpected,
-        totalAvailableForInstallment: totalAvailableForInstallment,
-      });
 
       try {
         if (totalAvailableForInstallment >= remainingExpected) {
@@ -866,15 +818,6 @@ export class PrestamosService {
   ): Promise<void> {
     const totalLoanAmount = scheduleItem.loanAmount;
     const remainingBalance = Math.max(0, totalLoanAmount - runningPaidTotal);
-
-    console.log('BEFORE PAYMENT SCHEDULE UPDATE 576:            ', {
-      paymentSplit: paymentSplit,
-      totalPaymentAmount: totalPaymentAmount,
-      runningPaidTotal: runningPaidTotal,
-      scheduleItem: scheduleItem.expected_amount,
-      remainingExpected: scheduleItem.paid_amount,
-      remainingBalance: remainingBalance,
-    });
 
     await prisma.paymentSchedule.update({
       where: { id: scheduleItem.id },
@@ -967,10 +910,6 @@ export class PrestamosService {
     userId: string,
     userRole: UserRole,
   ) {
-    console.log('VALIDATE PAYMENT 777: ', {
-      userId: userId,
-      userRole: userRole,
-    });
 
     const prestamo = await this.prisma.prestamoNew.findUnique({
       where: { id: prestamoId },
@@ -1069,10 +1008,6 @@ export class PrestamosService {
   }
 
   async getRemainingPayments(id: string, userId: string, userRole: UserRole) {
-    console.log('GET REMAINING PAYMENTS 879: ', {
-      userId: userId,
-      userRole: userRole,
-    });
     const prestamo = await this.prisma.prestamoNew.findUnique({
       where: { id },
       include: {
@@ -1108,17 +1043,6 @@ export class PrestamosService {
     const nextPaymentDue = prestamo.paymentSchedule[0];
     const nextPaymentDate = nextPaymentDue?.due_date;
 
-    console.log('GET REMAINING PAYMENTS 936: ', {
-      totalPaid: totalPaid,
-      remainingAmount: prestamo.remaining_amount,
-      nextPaymentDue: nextPaymentDue || null,
-      nextPaymentRemainingBalance: nextPaymentDue?.remaining_balance || 0, // Add this
-      nextPaymentDate: nextPaymentDate,
-      isOverdue:
-        nextPaymentDate &&
-        nextPaymentDate < new Date() &&
-        prestamo.remaining_amount > 0,
-    });
 
     if (prestamo.remaining_amount === 0) {
       return {
